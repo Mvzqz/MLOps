@@ -1,0 +1,38 @@
+schema: '2.0'
+stages:
+  clean:
+    cmd: python src/mlops_pruebas/data/clean_data.py 
+      data/raw/seoul_bike_sharing_modified.csv 
+      data/clean/clean_seoul_bike_data.csv
+    deps:
+    - path: data/raw/seoul_bike_sharing_modified.csv
+      hash: md5
+      md5: 0666539abbace0cc2c12df17b06046d9
+      size: 771920
+    - path: src/mlops_pruebas/data/clean_data.py
+      hash: md5
+      md5: 59f2d97ad83f2a33fa4a9548a4c20e52
+      size: 745
+    outs:
+    - path: data/clean/clean_seoul_bike_data.csv
+      hash: md5
+      md5: ce2b5fe15f4dcaf90345714bcdb508e6
+      size: 771339
+  features:
+    cmd: python src/mlops_pruebas/features/build_features.py 
+      data/clean/clean_seoul_bike_data.csv 
+      data/features/features_seoul_bike_data.csv
+    deps:
+    - path: data/clean/clean_seoul_bike_data.csv
+      hash: md5
+      md5: ce2b5fe15f4dcaf90345714bcdb508e6
+      size: 771339
+    - path: src/mlops_pruebas/features/build_features.py
+      hash: md5
+      md5: 61cb9b2a83848e26a1a9b77357ee64de
+      size: 799
+    outs:
+    - path: data/features/features_seoul_bike_data.csv
+      hash: md5
+      md5: ce2b5fe15f4dcaf90345714bcdb508e6
+      size: 771339
