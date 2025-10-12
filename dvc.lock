@@ -11,13 +11,13 @@ stages:
       size: 771920
     - path: src/mlops_pruebas/data/clean_data.py
       hash: md5
-      md5: 59f2d97ad83f2a33fa4a9548a4c20e52
-      size: 745
+      md5: adde4a517fade599e10ccfe53090bf84
+      size: 3439
     outs:
     - path: data/clean/clean_seoul_bike_data.csv
       hash: md5
-      md5: ce2b5fe15f4dcaf90345714bcdb508e6
-      size: 771339
+      md5: a01a780c8cb1958d1f29ca64cf97ca1b
+      size: 762811
   features:
     cmd: python src/mlops_pruebas/features/build_features.py 
       data/clean/clean_seoul_bike_data.csv 
@@ -25,14 +25,14 @@ stages:
     deps:
     - path: data/clean/clean_seoul_bike_data.csv
       hash: md5
-      md5: ce2b5fe15f4dcaf90345714bcdb508e6
-      size: 771339
+      md5: a01a780c8cb1958d1f29ca64cf97ca1b
+      size: 762811
     - path: src/mlops_pruebas/features/build_features.py
       hash: md5
-      md5: 61cb9b2a83848e26a1a9b77357ee64de
-      size: 799
+      md5: 633094659748a4384338f0229fa20842
+      size: 1867
     outs:
     - path: data/features/features_seoul_bike_data.csv
       hash: md5
-      md5: ce2b5fe15f4dcaf90345714bcdb508e6
-      size: 771339
+      md5: af0b347b3be1b869bf5e329d544f6022
+      size: 1069772
