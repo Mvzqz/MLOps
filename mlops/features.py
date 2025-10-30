@@ -1,67 +1,143 @@
-"""Feature engineering module for the MLOps project."""
+"""
+Módulo para ingeniería de características del dataset Seoul Bike Sharing Demand.
+Incluye creación de nuevas variables, codificación categórica y escalado.
+"""
 
+from pathlib import Path
 import pandas as pd
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+import typer
+from loguru import logger
+from tqdm import tqdm
+from mlops.config import PROCESSED_DATA_DIR, INTERIM_DATA_DIR
+
+# Inicialización de Typer y logging
+app = typer.Typer()
 
 
-def create_time_features_from_date(df: pd.DataFrame) -> pd.DataFrame:
-    """Creates time-based features from the 'Date' column.
-
-    Args:
-        df: The input DataFrame.
-
-    Returns:
-        The DataFrame with new time-based features.
+def crear_pipeline_preprocesamiento(vars_numericas, vars_categoricas):
     """
-    df = df.copy()
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-    df["Year"] = df["Date"].dt.year
-    df["Month"] = df["Date"].dt.month
-    df["Day"] = df["Date"].dt.day
-    df["Weekday"] = df["Date"].dt.day_name()
+    Crea un pipeline de preprocesamiento para variables numéricas y categóricas.
+    """
+    logger.info("⚙️ Creando pipeline de preprocesamiento...")
+
+    num_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler())
+    ])
+
+    cat_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
+    ])
+
+    preprocessor = ColumnTransformer([
+        ("numerico", num_pipeline, vars_numericas),
+        ("categorico", cat_pipeline, vars_categoricas)
+    ])
+
+    logger.info("✅ Pipeline de preprocesamiento creado con éxito.")
+    return preprocessor
+
+
+def agregar_caracteristicas_personalizadas(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Agrega variables derivadas específicas para el dataset Seoul Bike Sharing Demand.
+    """
+    logger.info("🧠 Creando nuevas características derivadas...")
+
+    # Interacción temperatura-humedad
+    df["Temp_Humidity_Interaction"] = df["Temperature(°C)"] * df["Humidity(%)"]
+
+    # Codificación de hora pico
+    df["Is_Peak_Hour"] = df["Hour"].apply(lambda x: 1 if (7 <= x <= 9) or (17 <= x <= 20) else 0)
+
+    # Codificación de estación del año
+    le = LabelEncoder()
+    df["Season_Encoded"] = le.fit_transform(df["Seasons"])
+
+    # Indicador de fin de semana
+    if "Functioning Day" in df.columns:
+        df["Weekend_Flag"] = df["Functioning Day"].apply(lambda x: 0 if x.strip().lower() == "yes" else 1)
+
+    logger.info("✅ Nuevas características generadas correctamente.")
     return df
 
 
-def add_is_weekend_and_holiday_or_weekend(df: pd.DataFrame) -> pd.DataFrame:
-    """Creates new categorical and binary features is_weekend and is_holiday_or_weekend.
-
-    Args:
-        df: The input DataFrame.
-
-    Returns:
-        The DataFrame with new categorical and binary features.
+def transformar_datos(preprocessor, X):
     """
-    df = df.copy()
-    df["is_weekend"] = df["Weekday"].isin(["Saturday", "Sunday"])
-    df["is_holiday_or_weekend"] = df["is_weekend"] | (df["Holiday"] == "Holiday")
-    return df
-
-
-def build_features(input_path: str, output_path: str) -> None:
-    """Builds features from the raw data and saves the features to the specified output
-    path.
-
-    Parameters:
-    - input_path: str - Path to the raw data file.
-    - output_path: str - Path where the features will be saved.
+    Aplica el pipeline de preprocesamiento a un DataFrame de entrada
+    y devuelve el resultado con nombres de columnas.
     """
+    logger.info("🔄 Transformando datos con el pipeline...")
+    X_trans = preprocessor.fit_transform(X)
 
-    # Load clean data
-    df = pd.read_csv(input_path)
+    # Obtener nombres de columnas del transformador
+    feature_names = []
+    try:
+        feature_names = preprocessor.get_feature_names_out()
+    except AttributeError:
+        # Compatibilidad con versiones anteriores de scikit-learn
+        for name, trans, cols in preprocessor.transformers_:
+            if hasattr(trans, "get_feature_names_out"):
+                fn = trans.get_feature_names_out(cols)
+            else:
+                fn = cols
+            feature_names.extend(fn)
 
-    # Create features
-    df = create_time_features_from_date(df)
-    df = add_is_weekend_and_holiday_or_weekend(df)
+    X_trans_df = pd.DataFrame(X_trans, columns=feature_names)
+    logger.info(f"✅ Transformación completada. Nueva forma: {X_trans_df.shape}")
+    return X_trans_df
 
-    # Save features
-    df.to_csv(output_path, index=False)
+
+@app.command()
+def main(
+    input_path: Path = INTERIM_DATA_DIR / "processed_data.csv",
+    output_path: Path = PROCESSED_DATA_DIR / "features.csv"
+):
+    """
+    Genera características transformadas a partir del dataset procesado,
+    aplicando un pipeline automático de preprocesamiento.
+    """
+    logger.info(f"📂 Leyendo datos desde: {input_path}")
+    try:
+        df = pd.read_csv(input_path)
+    except FileNotFoundError:
+        logger.error(f"No se encontró el archivo en {input_path}")
+        raise typer.Exit(code=1)
+
+    logger.info("🔍 Explorando columnas del dataset...")
+    logger.info(f"Columnas disponibles: {list(df.columns)}")
+
+    # Agregar nuevas características derivadas
+    df = agregar_caracteristicas_personalizadas(df)
+
+    print(df.columns)
+
+    # Identificar columnas numéricas y categóricas
+    vars_numericas = df.select_dtypes(include=["int64", "float64"]).columns.tolist()
+    vars_categoricas = df.select_dtypes(include=["object", "category"]).columns.tolist()
+
+    logger.info(f"Variables numéricas detectadas: {vars_numericas}")
+    logger.info(f"Variables categóricas detectadas: {vars_categoricas}")
+
+    # Crear pipeline y transformar datos
+    preprocessor = crear_pipeline_preprocesamiento(vars_numericas, vars_categoricas)
+
+    logger.info("🚀 Iniciando generación de características...")
+    with tqdm(total=100, desc="Procesando pipeline") as pbar:
+        features = transformar_datos(preprocessor, df)
+        pbar.update(100)
+
+    # Guardar con nombres de columnas
+    features.to_csv(output_path, index=False)
+
+    logger.info(f"💾 Archivo con características guardado en: {output_path}")
+    logger.info("🎯 Proceso completado exitosamente.")
 
 
 if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) != 3:
-        print("Usage: python build_features.py <input_path> <output_path>")
-    else:
-        input_path = sys.argv[1]
-        output_path = sys.argv[2]
-        build_features(input_path, output_path)
+    app()
