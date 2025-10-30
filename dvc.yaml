@@ -1,0 +1,16 @@
+stages:
+  clean:
+    cmd: python src/mlops_pruebas/data/clean_data.py data/raw/seoul_bike_sharing_modified.csv data/clean/clean_seoul_bike_data.csv
+    deps:
+      - data/raw/seoul_bike_sharing_modified.csv
+      - src/mlops_pruebas/data/clean_data.py
+    outs:
+      - data/clean/clean_seoul_bike_data.csv
+  features:
+    cmd: python src/mlops_pruebas/features/build_features.py data/clean/clean_seoul_bike_data.csv data/features/features_seoul_bike_data.csv
+    deps:
+      - data/clean/clean_seoul_bike_data.csv
+      - src/mlops_pruebas/features/build_features.py
+    outs:
+      - data/features/features_seoul_bike_data.csv
+

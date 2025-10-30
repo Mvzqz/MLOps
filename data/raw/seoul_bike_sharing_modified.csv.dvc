@@ -1,0 +1,5 @@
+outs:
+- md5: 0666539abbace0cc2c12df17b06046d9
+  size: 771920
+  hash: md5
+  path: seoul_bike_sharing_modified.csv

@@ -1,14 +1,36 @@
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
-
 [project]
 name = "mlops"
 version = "0.0.1"
 description = "mlops project"
 authors = [
-  { name = "team-44" },
+    {name = "Sara Alegria",email = "A01224696@tec.mx"},
+    {name = "Raul Gomez", email = "A01795214@tec.mx"},
+    {name = "Fabiola Guevara",email = "A01796393@tec.mx"},
+    {name = "Manuel Vázquez",email = "manuel.vazquez.meza@gmail.com"},
+    {name = "Nancy Zapien", email = "nancyzapien12@gmail.com"}
 ]
+readme = "README.md"
+requires-python =  ">=3.12,<4.0"
+dependencies = [
+    "numpy (>=2.3.3,<3.0.0)",
+    "pandas (>=2.3.3,<3.0.0)",
+    "scikit-learn (>=1.7.2,<2.0.0)",
+    "mlflow (>=3.4.0,<4.0.0)",
+    "fastapi[all] (>=0.118.2,<0.119.0)",
+    "pydantic (>=2.12.0,<3.0.0)",
+    "uvicorn (>=0.37.0,<0.38.0)",
+    "dvc[gdrive] (>=3.63.0,<4.0.0)",
+    "pyopenssl (<=24.2.1)",
+    "cryptography (<46)",
+    "loguru (>=0.7.3,<0.8.0)",
+    "xgboost (>=3.1.1,<4.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
 
 readme = "README.md"
 classifiers = [
