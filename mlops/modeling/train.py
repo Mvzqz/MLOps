@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """Training module for the MLOps project.
 Performs model selection and hyperparameter tuning using scikit-learn search strategies.
 Supports GridSearchCV, HalvingGridSearchCV, and HalvingRandomSearchCV with configurable parameters.
@@ -9,10 +10,15 @@ import pickle
 import json
 
 import pandas as pd
+=======
+from pathlib import Path
+
+>>>>>>> origin/main
 from loguru import logger
 from tqdm import tqdm
 import typer
 
+<<<<<<< HEAD
 # --- Scikit-learn imports ---
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.experimental import enable_halving_search_cv  # noqa: F401
@@ -36,11 +42,14 @@ from sklearn.svm import SVC, SVR
 # --- XGBoost ---
 from xgboost import XGBClassifier, XGBRegressor
 
+=======
+>>>>>>> origin/main
 from mlops.config import MODELS_DIR, PROCESSED_DATA_DIR
 
 app = typer.Typer()
 
 
+<<<<<<< HEAD
 # -------------------------------------------------------------------
 # MODEL AND SEARCH REGISTRIES
 # -------------------------------------------------------------------
@@ -224,6 +233,23 @@ def main(
     typer.echo(f"Best Params: {best_params}")
     typer.echo(f"Validation Metrics: {val_results}")
     typer.echo(f"Test Metrics: {test_results}")
+=======
+@app.command()
+def main(
+    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
+    features_path: Path = PROCESSED_DATA_DIR / "features.csv",
+    labels_path: Path = PROCESSED_DATA_DIR / "labels.csv",
+    model_path: Path = MODELS_DIR / "model.pkl",
+    # -----------------------------------------
+):
+    # ---- REPLACE THIS WITH YOUR OWN CODE ----
+    logger.info("Training some model...")
+    for i in tqdm(range(10), total=10):
+        if i == 5:
+            logger.info("Something happened for iteration 5.")
+    logger.success("Modeling training complete.")
+    # -----------------------------------------
+>>>>>>> origin/main
 
 
 if __name__ == "__main__":
