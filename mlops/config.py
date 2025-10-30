@@ -3,10 +3,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
 
-# Load environment variables from .env file if it exists
+# ---------------------------------------------------------
+# Load environment variables
+# ---------------------------------------------------------
 load_dotenv()
 
-# Paths
+# ---------------------------------------------------------
+# Project paths
+# ---------------------------------------------------------
 PROJ_ROOT = Path(__file__).resolve().parents[1]
 logger.info(f"PROJ_ROOT path is: {PROJ_ROOT}")
 
@@ -21,8 +25,29 @@ MODELS_DIR = PROJ_ROOT / "models"
 REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
 
-# If tqdm is installed, configure loguru with tqdm.write
-# https://github.com/Delgan/loguru/issues/135
+# ---------------------------------------------------------
+# Training configuration defaults
+# ---------------------------------------------------------
+RANDOM_SEED = 42
+TEST_SIZE = 0.2
+VAL_SIZE = 0.25
+TARGET_COL = "Rented Bike Count"
+
+# Model training defaults
+DEFAULT_MODEL_NAME = "random_forest_regressor"
+DEFAULT_PARAM_GRID = {
+    "n_estimators": [50, 100],
+    "max_depth": [5, 10],
+}
+DEFAULT_METRIC = "r2"
+DEFAULT_SEARCH_MODE = "grid"
+DEFAULT_SEARCH_PARAMS = {}
+DEFAULT_CV = 3
+DEFAULT_MODEL_PATH = MODELS_DIR / "best_model.pkl"
+
+# ---------------------------------------------------------
+# tqdm-safe logger configuration
+# ---------------------------------------------------------
 try:
     from tqdm import tqdm
 
