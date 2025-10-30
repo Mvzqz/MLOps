@@ -1,7 +1,7 @@
 [project]
 name = "mlops"
-version = "0.1.0"
-description = ""
+version = "0.0.1"
+description = "mlops project"
 authors = [
     {name = "Sara Alegria",email = "A01224696@tec.mx"},
     {name = "Raul Gomez", email = "A01795214@tec.mx"},
@@ -31,13 +31,6 @@ dependencies = [
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[project]
-name = "mlops"
-version = "0.0.1"
-description = "mlops project"
-authors = [
-  { name = "team-44" },
-]
 
 readme = "README.md"
 classifiers = [

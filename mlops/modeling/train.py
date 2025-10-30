@@ -1,37 +1,43 @@
 """Training module for the MLOps project.
-Performs model selection and hyperparameter tuning using scikit-learn search strategies.
-Supports GridSearchCV, HalvingGridSearchCV, and HalvingRandomSearchCV with configurable parameters.
-Includes separate validation and test sets.
+
+Performs model selection and hyperparameter tuning using scikit-learn
+search strategies. Supports GridSearchCV, HalvingGridSearchCV, and
+HalvingRandomSearchCV with configurable parameters. Includes separate
+validation and test sets.
 """
 
+import json
 from pathlib import Path
 import pickle
-import json
 
-import pandas as pd
 from loguru import logger
-from tqdm import tqdm
-import typer
-
-# --- Scikit-learn imports ---
-from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.experimental import enable_halving_search_cv  # noqa: F401
-from sklearn.model_selection import HalvingGridSearchCV, HalvingRandomSearchCV
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    mean_squared_error,
-    r2_score,
-)
+import pandas as pd
 from sklearn.ensemble import (
+    HistGradientBoostingRegressor,
     RandomForestClassifier,
     RandomForestRegressor,
-    HistGradientBoostingRegressor,
 )
-from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.experimental import enable_halving_search_cv  # noqa: F401
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    mean_squared_error,
+    precision_score,
+    r2_score,
+    recall_score,
+)
+
+# --- Scikit-learn imports ---
+from sklearn.model_selection import (
+    GridSearchCV,
+    HalvingGridSearchCV,
+    HalvingRandomSearchCV,
+    train_test_split,
+)
 from sklearn.svm import SVC, SVR
+from tqdm import tqdm
+import typer
 
 # --- XGBoost ---
 from xgboost import XGBClassifier, XGBRegressor
@@ -50,7 +56,6 @@ MODEL_REGISTRY = {
     "svc": SVC,
     "random_forest_classifier": RandomForestClassifier,
     "xgb_classifier": XGBClassifier,
-
     # ---- Regression models ----
     "linear_regression": LinearRegression,
     "svr": SVR,
@@ -94,7 +99,9 @@ def load_data(dataset_path: Path, target_col: str, val_size: float, test_size: f
     X_temp, X_test, y_temp, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
     # Then split train/validation
     val_ratio = val_size / (1 - test_size)
-    X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=val_ratio, random_state=42)
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_temp, y_temp, test_size=val_ratio, random_state=42
+    )
 
     logger.info(f"Split sizes: Train={len(X_train)}, Val={len(X_val)}, Test={len(X_test)}")
     return X_train, X_val, X_test, y_train, y_val, y_test
@@ -112,7 +119,9 @@ def build_model(model_name: str):
 def build_search_strategy(search_mode: str, model_instance, param_grid, metric, cv, search_params):
     """Initialize the chosen search strategy with parameters."""
     if search_mode not in SEARCH_REGISTRY:
-        logger.error(f"Search mode '{search_mode}' not supported. Choose from {list(SEARCH_REGISTRY.keys())}")
+        logger.error(
+            f"Search mode '{search_mode}' not supported. Choose from {list(SEARCH_REGISTRY.keys())}"
+        )
         raise typer.Exit(code=1)
 
     search_class = SEARCH_REGISTRY[search_mode]
@@ -174,9 +183,16 @@ def main(
     dataset_path: Path = PROCESSED_DATA_DIR / "train_dataset.csv",
     target_col: str = typer.Option(..., help="Target column name in the dataset"),
     model_name: str = typer.Option("random_forest_classifier", help="Model name from registry"),
-    param_grid: str = typer.Option('{"n_estimators": [50, 100], "max_depth": [5, 10]}', help="Model hyperparameter grid as JSON"),
-    metric: str = typer.Option("accuracy", help="Metric: accuracy, precision, recall, f1, mse, r2"),
-    search_mode: str = typer.Option("grid", help="Search mode: grid | halving_grid | halving_random"),
+    param_grid: str = typer.Option(
+        '{"n_estimators": [50, 100], "max_depth": [5, 10]}',
+        help="Model hyperparameter grid as JSON",
+    ),
+    metric: str = typer.Option(
+        "accuracy", help="Metric: accuracy, precision, recall, f1, mse, r2"
+    ),
+    search_mode: str = typer.Option(
+        "grid", help="Search mode: grid | halving_grid | halving_random"
+    ),
     search_params: str = typer.Option("{}", help="Extra parameters for search strategy as JSON"),
     cv: int = typer.Option(3, help="Cross-validation folds"),
     val_size: float = typer.Option(0.1, help="Validation split ratio"),
@@ -190,11 +206,15 @@ def main(
     search_params = parse_json_arg("search_params", search_params)
 
     # ---- Load and prepare data ----
-    X_train, X_val, X_test, y_train, y_val, y_test = load_data(dataset_path, target_col, val_size, test_size)
+    X_train, X_val, X_test, y_train, y_val, y_test = load_data(
+        dataset_path, target_col, val_size, test_size
+    )
 
     # ---- Initialize model and search ----
     model_instance = build_model(model_name)
-    search = build_search_strategy(search_mode, model_instance, param_grid, metric, cv, search_params)
+    search = build_search_strategy(
+        search_mode, model_instance, param_grid, metric, cv, search_params
+    )
 
     # ---- Train ----
     logger.info(f"Starting hyperparameter search for {model_name}...")
