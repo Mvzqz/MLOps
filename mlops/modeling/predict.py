@@ -1,6 +1,4 @@
-<<<<<<< HEAD
 """Prediction module for the MLOps project."""
-=======
 from pathlib import Path
 
 from loguru import logger
@@ -31,4 +29,3 @@ def main(
 
 if __name__ == "__main__":
     app()
->>>>>>> origin/main
