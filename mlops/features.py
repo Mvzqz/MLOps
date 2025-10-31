@@ -1,184 +1,97 @@
-"""Módulo para ingeniería de características y preprocesamiento del dataset Seoul Bike
-Sharing.
+"""
+Módulo para la ingeniería de características del dataset Seoul Bike Sharing.
 
-Integra los pipelines numéricos y categóricos definidos originalmente,
-junto con generación de nuevas variables y registro de logs para
-trazabilidad.
+Este script carga el dataset limpio, crea nuevas características y guarda el
+dataset enriquecido. Sigue un enfoque orientado a objetos para mayor
+modularidad y mantenibilidad.
 """
 
-import logging
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
-from tqdm import tqdm
+from loguru import logger
 import typer
 
 from mlops.config import PROCESSED_DATA_DIR
 
-# Inicializar aplicación y logger
-
-
 app = typer.Typer()
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(name)
-
-# ----------------------------------------------------------
-# Creación de Pipelines de Preprocesamiento
-# ---------------------------------------------------------
 
 
-def crear_pipeline_preprocesamiento(vars_numericas, vars_categoricas):
-    """Crea un pipeline de preprocesamiento para variables numéricas y categóricas.
+class FeatureEngineer:
+    """Encapsula el pipeline de ingeniería de características."""
 
-    Args:
-        vars_numericas (list): Columnas numéricas.
-        vars_categoricas (list): Columnas categóricas.
+    def __init__(self, input_path: Path, output_path: Path):
+        self.input_path = input_path
+        self.output_path = output_path
+        self.df: Optional[pd.DataFrame] = None
 
-    Returns:
-        ColumnTransformer: Pipeline completo de preprocesamiento.
-    """
-    logger.info("⚙️ Creando pipeline de preprocesamiento...")
+    def load_data(self) -> "FeatureEngineer":
+        """Carga el dataset limpio."""
+        logger.info(f"Cargando dataset desde {self.input_path}...")
+        try:
+            self.df = pd.read_csv(self.input_path, parse_dates=["date"])
+        except FileNotFoundError:
+            logger.error(f"El archivo no se encontró en la ruta: {self.input_path}")
+            raise typer.Exit(code=1)
+        return self
 
-    # Pipeline numérico
-    num_pipeline = Pipeline(
-        [("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]
-    )
+    def create_features(self) -> "FeatureEngineer":
+        """Crea y añade nuevas características al DataFrame."""
+        if self.df is None:
+            raise ValueError("El DataFrame no ha sido cargado. Llama a `load_data` primero.")
+        
+        logger.info("Creando nuevas características...")
+        self._add_temporal_features()
+        self._add_cyclical_features()
+        self._add_interaction_features()
+        
+        # Eliminar columnas que ya no son necesarias después de la ingeniería
+        self.df = self.df.drop(columns=["date", "functioning_day", "holiday"], errors="ignore")
+        
+        return self
 
-    # Pipeline categórico
-    cat_pipeline = Pipeline(
-        [
-            ("imputer", SimpleImputer(strategy="most_frequent")),
-            ("encoder", OneHotEncoder(handle_unknown="ignore")),
-        ]
-    )
+    def _add_temporal_features(self):
+        """Añade características basadas en la columna 'date'."""
+        self.df["year"] = self.df["date"].dt.year
+        self.df["month"] = self.df["date"].dt.month
+        self.df["day"] = self.df["date"].dt.day
+        self.df["dayofweek"] = self.df["date"].dt.dayofweek
+        self.df["is_weekend"] = (self.df["dayofweek"] >= 5).astype(int)
 
-    # Composición general
-    preprocessor = ColumnTransformer(
-        [
-            ("numerico", num_pipeline, vars_numericas),
-            ("categorico", cat_pipeline, vars_categoricas),
-        ]
-    )
+    def _add_cyclical_features(self):
+        """Añade características cíclicas para entender patrones temporales."""
+        self.df["hour_sin"] = np.sin(2 * np.pi * self.df["hour"] / 24.0)
+        self.df["hour_cos"] = np.cos(2 * np.pi * self.df["hour"] / 24.0)
+        self.df["month_sin"] = np.sin(2 * np.pi * (self.df["month"] - 1) / 12.0)
+        self.df["month_cos"] = np.cos(2 * np.pi * (self.df["month"] - 1) / 12.0)
 
-    logger.info("✅ Pipeline de preprocesamiento creado correctamente.")
-    return preprocessor
+    def _add_interaction_features(self):
+        """Añade características de negocio y de interacción."""
+        self.df["is_rush_hour"] = self.df["hour"].isin([7, 8, 9, 17, 18, 19]).astype(int)
+        self.df["is_holiday_or_weekend"] = ((self.df["is_weekend"] == 1) | (self.df["holiday"] == "Holiday")).astype(int)
 
-
-# ----------------------------------------------------------
-# Generación de nuevas características personalizadas
-# ----------------------------------------------------------
-
-
-def agregar_caracteristicas_personalizadas(df: pd.DataFrame) -> pd.DataFrame:
-    """Crea nuevas columnas derivadas del dataset base.
-
-    Args:
-        df (pd.DataFrame): Dataset original.
-
-    Returns:
-        pd.DataFrame: Dataset con nuevas columnas agregadas.
-    """
-    logger.info("🧩 Agregando características derivadas...")
-
-    if "Temperature(°C)" in df.columns and "Humidity(%)" in df.columns:
-        df["Temp_Humidity_Interaction"] = df["Temperature(°C)"] * df["Humidity(%)"]
-
-    if "Hour" in df.columns:
-        df["Is_Peak_Hour"] = df["Hour"].apply(
-            lambda x: 1 if (7 <= x <= 9) or (17 <= x <= 20) else 0
-        )
-
-    if "Seasons" in df.columns:
-        le = LabelEncoder()
-        df["Season_Encoded"] = le.fit_transform(df["Seasons"])
-
-    if "Functioning Day" in df.columns:
-        df["Weekend_Flag"] = df["Functioning Day"].apply(
-            lambda x: 0 if x.strip().lower() == "yes" else 1
-        )
-
-    logger.info("✅ Nuevas características generadas correctamente.")
-    return df
-
-
-# ----------------------------------------------------------
-# Aplicar pipeline de transformación
-# ----------------------------------------------------------
-
-
-def transformar_datos(preprocessor, X: pd.DataFrame) -> np.ndarray:
-    """Aplica el pipeline de preprocesamiento a los datos de entrada.
-
-    Args:
-        preprocessor: Pipeline ajustado.
-        X (pd.DataFrame): Datos originales.
-
-    Returns:
-        np.ndarray: Datos transformados listos para modelado.
-    """
-    logger.info("🔄 Aplicando transformación con el pipeline...")
-    X_trans = preprocessor.fit_transform(X)
-    logger.info(f"✅ Transformación completada. Nueva forma: {X_trans.shape}")
-    return X_trans
-
-
-# ----------------------------------------------------------
-# Ejecución principal del script con Typer
-# ----------------------------------------------------------
-
+    def save_data(self) -> None:
+        """Guarda el DataFrame con características en el `output_path`."""
+        if self.df is None:
+            raise ValueError("No hay datos para guardar.")
+        logger.info(f"Guardando dataset con características en {self.output_path}...")
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        self.df.to_csv(self.output_path, index=False)
+        logger.success("Ingeniería de características y guardado completados.")
 
 @app.command()
 def main(
-    input_path: Path = PROCESSED_DATA_DIR / "processed_data.csv",
-    output_path: Path = PROCESSED_DATA_DIR / "features.csv",
+    input_path: Path = PROCESSED_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
+    output_path: Path = PROCESSED_DATA_DIR / "seoul_bike_sharing_featured.csv",
 ):
-    """Ejecuta el flujo completo de ingeniería de características:
-
-    - Lectura del dataset procesado
-    - Generación de nuevas características
-    - Creación y aplicación de pipelines
-    - Exportación de dataset transformado
-    """
-
-    logger.info(f"📂 Leyendo datos desde: {input_path}")
-    try:
-        df = pd.read_csv(input_path)
-    except FileNotFoundError:
-        logger.error(f"❌ No se encontró el archivo en {input_path}")
-        raise typer.Exit(code=1)
-
-    logger.info("🔍 Explorando columnas disponibles...")
-    logger.info(f"Columnas detectadas: {list(df.columns)}")
-
-    # Crear nuevas variables
-    df = agregar_caracteristicas_personalizadas(df)
-
-    # Identificar variables por tipo
-    vars_numericas = df.select_dtypes(include=["int64", "float64"]).columns.tolist()
-    vars_categoricas = df.select_dtypes(include=["object", "category"]).columns.tolist()
-
-    logger.info(f"📊 Variables numéricas: {vars_numericas}")
-    logger.info(f"🔠 Variables categóricas: {vars_categoricas}")
-
-    # Crear y aplicar pipeline
-    preprocessor = crear_pipeline_preprocesamiento(vars_numericas, vars_categoricas)
-
-    with tqdm(total=100, desc="Procesando pipeline") as pbar:
-        X_trans = transformar_datos(preprocessor, df)
-        pbar.update(100)
-
-    # Convertir a DataFrame y guardar
-    features = pd.DataFrame(X_trans)
-    features.to_csv(output_path, index=False)
-
-    logger.info(f"💾 Archivo de características guardado en: {output_path}")
-    logger.info("🎯 Flujo de ingeniería de características completado exitosamente.")
+    """Ejecuta el pipeline completo de ingeniería de características."""
+    engineer = FeatureEngineer(input_path, output_path)
+    (engineer.load_data()
+     .create_features()
+     .save_data())
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     app()

@@ -17,6 +17,16 @@ requirements:
 	poetry install
 	
 
+## Update dependencies and lock file
+.PHONY: update
+update:
+	poetry lock
+
+## Update dependencies and lock file
+.PHONY: update
+update:
+	poetry lock
+
 
 
 ## Delete all compiled Python files
@@ -66,28 +76,28 @@ create_environment:
 ## Make dataset
 .PHONY: data
 data:
-	poetry run $(PYTHON_INTERPRETER) mlops/dataset.py
+	poetry run $(PYTHON_INTERPRETER) -m mlops.dataset
 
 ## Make features from cleaned data
 .PHONY: features
 features: data
-	poetry run $(PYTHON_INTERPRETER) mlops/features.py
+	poetry run $(PYTHON_INTERPRETER) -m mlops.features
 
 ## Generate plots from featured data
 .PHONY: plots
 plots: features
-	poetry run $(PYTHON_INTERPRETER) mlops/plots.py
+	poetry run $(PYTHON_INTERPRETER) -m mlops.plots
 
 ## Train model
 .PHONY: train
 train: features
-	poetry run $(PYTHON_INTERPRETER) mlops/modeling/train.py
+	poetry run $(PYTHON_INTERPRETER) -m mlops.modeling.train
 
 
 ## Run model inference
 .PHONY: predict
 predict: train
-	poetry run $(PYTHON_INTERPRETER) mlops/modeling/predict.py
+	poetry run $(PYTHON_INTERPRETER) -m mlops.modeling.predict
 
 ## Run the full data science pipeline
 .PHONY: run-pipeline
