@@ -78,7 +78,14 @@ class ModelTrainer:
         target_col = self.config["target_col"]
         if target_col not in df.columns:
             logger.error(f"Columna objetivo '{target_col}' no encontrada.")
-            raise typer.Exit(code=1)
+            raise ValueError(f"Columna objetivo '{target_col}' no encontrada en el dataset. Columnas disponibles: {df.columns.tolist()}")
+
+        # Eliminar filas donde la columna objetivo es NaN para evitar errores en el entrenamiento
+        initial_rows = len(df)
+        df.dropna(subset=[target_col], inplace=True)
+        if len(df) < initial_rows:
+            logger.warning(f"Se eliminaron {initial_rows - len(df)} filas con valores nulos en la columna objetivo '{target_col}'.")
+
 
         X = df.drop(columns=[target_col])
         y = df[target_col]

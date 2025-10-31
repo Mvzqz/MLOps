@@ -39,24 +39,10 @@ class DatasetProcessor:
         """Carga el dataset desde el `input_path`."""
         logger.info(f"Cargando dataset desde {self.input_path}...")
         try:
-            self.df = pd.read_csv(self.input_path, encoding="latin1")
+            self.df = pd.read_csv(self.input_path, encoding="cp1252")
         except FileNotFoundError:
             logger.error(f"El archivo no se encontró en la ruta: {self.input_path}")
             raise typer.Exit(code=1)
-        return self
-
-    def clean_column_names(self) -> "DatasetProcessor":
-        """Normaliza los nombres de las columnas a un formato snake_case."""
-        if self.df is None:
-            raise ValueError("El DataFrame no ha sido cargado. Llama a `load_data` primero.")
-        logger.info("Normalizando nombres de columnas...")
-        self.df.columns = (
-            self.df.columns.str.strip()
-            .str.lower()
-            .str.replace(" ", "_")
-            .str.replace("(", "")
-            .str.replace(")", "")
-        )
         return self
 
     def clean_data_values(self) -> "DatasetProcessor":
@@ -69,8 +55,21 @@ class DatasetProcessor:
             self.df[col] = self.df[col].str.strip()
         # Imputar valores nulos en la columna 'hour' con la mediana
         if "hour" in self.df.columns:
-            median_hour = self.df["hour"].median()
-            self.df["hour"].fillna(median_hour, inplace=True)
+            self.df["hour"] = self.df["hour"].fillna(self.df["hour"].median())
+        return self
+
+    def _normalize_column_names(self) -> "DatasetProcessor":
+        """Normaliza los nombres de las columnas a un formato snake_case."""
+        if self.df is None:
+            raise ValueError("El DataFrame no ha sido cargado.")
+        logger.info("Normalizando nombres de columnas...")
+        self.df.columns = (
+            self.df.columns.str.strip()
+            .str.lower()
+            .str.replace(r"[^a-zA-Z0-9_]+", "_", regex=True)
+            .str.replace(r"_+", "_", regex=True)
+            .str.strip("_")
+        )
         return self
 
     def preprocess_data(self) -> "DatasetProcessor":
@@ -78,10 +77,11 @@ class DatasetProcessor:
         if self.df is None:
             raise ValueError("El DataFrame no ha sido cargado.")
         logger.info("Aplicando preprocesamiento: convirtiendo fechas y filtrando días no funcionales.")
+        self._normalize_column_names()
         self.df["date"] = pd.to_datetime(self.df["date"], dayfirst=True)
         self.df = self.df[self.df["functioning_day"] == "Yes"].copy()
         # Renombrar la columna objetivo para que coincida con la configuración
-        self.df.rename(columns={"rented_bike_count": TARGET_COL}, inplace=True)
+        self.df.rename(columns={"rented_bike_count": TARGET_COL.lower().replace(" ", "_")}, inplace=True)
         return self
 
     def save_data(self) -> None:
@@ -103,7 +103,6 @@ def main(
     processor = DatasetProcessor(input_path, output_path)
     (processor.load_data()
      .clean_data_values()
-     .clean_column_names()
      .preprocess_data()
      .save_data())
 
