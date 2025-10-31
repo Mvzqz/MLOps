@@ -31,7 +31,7 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 RANDOM_SEED = 42
 TEST_SIZE = 0.15
 VAL_SIZE = 0.15
-TARGET_COL = "Rented Bike Count"
+TARGET_COL = "rented_bike_count"
 
 # ---------------------------------------------------------
 # Default model and search configuration
@@ -41,11 +41,11 @@ DEFAULT_MODEL_NAME = "hist_gradient_boosting_regressor"
 
 # Smaller but meaningful grid to ensure success and prevent overfitting/timeouts
 DEFAULT_PARAM_GRID = {
-    "max_depth": [5, 10, None],
-    "learning_rate": [0.05, 0.1],
-    "max_iter": [100, 200],
-    "min_samples_leaf": [10, 20],
-    "l2_regularization": [0.0, 0.1],
+    "model__max_depth": [5, 10, None],
+    "model__learning_rate": [0.05, 0.1],
+    "model__max_iter": [100, 200],
+    "model__min_samples_leaf": [10, 20],
+    "model__l2_regularization": [0.0, 0.1],
 }
 
 DEFAULT_METRIC = "r2"  # r2 works well for regression

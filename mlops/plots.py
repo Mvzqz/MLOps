@@ -74,6 +74,26 @@ class PlotGenerator:
         plt.savefig(self.output_dir / "demand_by_hour.png")
         plt.close()
 
+    def _plot_correlation_heatmap(self):
+        """Genera y guarda un mapa de calor de la correlación entre variables numéricas."""
+        plt.figure(figsize=(14, 10))
+        
+        # Seleccionar solo columnas numéricas para la correlación
+        numeric_df = self.df.select_dtypes(include=['number'])
+        
+        # Si no hay columnas numéricas, no se puede generar el gráfico
+        if numeric_df.empty:
+            logger.warning("No se encontraron columnas numéricas para generar el mapa de calor de correlación.")
+            plt.close()
+            return
+            
+        corr_matrix = numeric_df.corr()
+        
+        sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm", linewidths=.5)
+        plt.title("Mapa de Calor de Correlación de Variables Numéricas")
+        plt.savefig(self.output_dir / "correlation_heatmap.png")
+        plt.close()
+
 
 @app.command()
 def main(

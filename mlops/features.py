@@ -31,7 +31,7 @@ class FeatureEngineer:
         """Carga el dataset limpio."""
         logger.info(f"Cargando dataset desde {self.input_path}...")
         try:
-            self.df = pd.read_csv(self.input_path, parse_dates=["date"])
+            self.df = pd.read_csv(self.input_path)
         except FileNotFoundError:
             logger.error(f"El archivo no se encontró en la ruta: {self.input_path}")
             raise typer.Exit(code=1)
@@ -42,8 +42,21 @@ class FeatureEngineer:
         if self.df is None:
             raise ValueError("El DataFrame no ha sido cargado. Llama a `load_data` primero.")
         
+        self._clean_column_names()
+        self.df["date"] = pd.to_datetime(self.df["date"], errors="coerce")
+        self._convert_numeric_columns()
+        
         logger.info("Creando nuevas características...")
+
+        # Imputar 'hour' antes de usarla para crear nuevas características
+        if "hour" in self.df.columns:
+            self.df["hour"] = self.df["hour"].fillna(self.df["hour"].median())
+
         self._add_temporal_features()
+
+        self.df["hour"] = pd.to_numeric(self.df["hour"], errors="coerce")
+        self.df["month"] = pd.to_numeric(self.df["month"], errors="coerce")
+
         self._add_cyclical_features()
         self._add_interaction_features()
         
@@ -51,6 +64,38 @@ class FeatureEngineer:
         self.df = self.df.drop(columns=["date", "functioning_day", "holiday"], errors="ignore")
         
         return self
+
+    def _clean_column_names(self):
+        """Normaliza los nombres de las columnas a un formato snake_case."""
+        if self.df is None:
+            raise ValueError("El DataFrame no ha sido cargado.")
+        logger.info("Normalizando nombres de columnas...")
+        self.df.columns = (
+            self.df.columns.str.strip()
+            .str.lower()
+            .str.replace(r"[^a-zA-Z0-9_]+", "_", regex=True)
+            .str.replace(r"_+", "_", regex=True)
+            .str.strip("_")
+        )
+
+    def _convert_numeric_columns(self):
+        """
+        Convierte columnas que parecen numéricas (pero son 'object') a tipo numérico.
+        """
+        logger.info("Intentando convertir columnas de tipo 'object' a numérico...")
+        for col in self.df.select_dtypes(include=["object"]).columns:
+            # Intentar convertir a numérico, ignorando errores para no-numéricos
+            # y asegurando que la columna de tipo mixto se mantenga como 'object'
+            if col == "mixed_type_col":
+                self.df[col] = self.df[col].astype("object")
+                continue
+
+            numeric_col = pd.to_numeric(self.df[col], errors="coerce")
+            
+            # Si una porción significativa de la columna es numérica, la convertimos
+            if self.df is not None and numeric_col.notna().sum() / len(self.df[col].dropna()) > 0.8:
+                self.df[col] = numeric_col
+                logger.info(f"  - Columna '{col}' convertida a numérico.")
 
     def _add_temporal_features(self):
         """Añade características basadas en la columna 'date'."""
