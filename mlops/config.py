@@ -29,8 +29,8 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 # Core training configuration
 # ---------------------------------------------------------
 RANDOM_SEED = 42
-TEST_SIZE = 0.15
-VAL_SIZE = 0.15
+TEST_SIZE = 0.10
+VAL_SIZE = 0.10
 TARGET_COL = "rented_bike_count"
 
 # ---------------------------------------------------------
