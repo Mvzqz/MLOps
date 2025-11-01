@@ -21,6 +21,8 @@ from sklearn.ensemble import (
 )
 from sklearn.experimental import enable_halving_search_cv  # noqa: F401
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
 from sklearn.model_selection import (
     GridSearchCV,
     HalvingGridSearchCV,
