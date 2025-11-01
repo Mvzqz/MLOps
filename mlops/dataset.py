@@ -1,5 +1,5 @@
-"""
-Módulo para la limpieza y preprocesamiento inicial del dataset Seoul Bike Sharing,
+"""Módulo para la limpieza y preprocesamiento inicial del dataset Seoul Bike Sharing,
+
 Funciones:
 - Carga el dataset crudo.
 - Normaliza los nombres de las columnas.
@@ -8,15 +8,16 @@ Funciones:
 - Guarda el dataset procesado en la carpeta `processed` con registro de ejecución en MLflow mediante DagsHub.
 """
 
+import os
 from pathlib import Path
 from typing import Optional
-import os
-from dotenv import load_dotenv
-import pandas as pd
+
 import dagshub
+from dotenv import load_dotenv
+from loguru import logger
 import mlflow
 import mlflow.data.pandas_dataset
-from loguru import logger
+import pandas as pd
 import typer
 
 from mlops.config import INTERIM_DATA_DIR, RAW_DATA_DIR, TARGET_COL
@@ -25,11 +26,10 @@ app = typer.Typer()
 
 
 class DatasetProcessor:
-    """
-    Encapsula el pipeline de preprocesamiento de datos.
+    """Encapsula el pipeline de preprocesamiento de datos.
 
-    Esta clase organiza la carga, limpieza, transformación y guardado de los datos,
-    haciendo el proceso más mantenible y fácil de probar.
+    Esta clase organiza la carga, limpieza, transformación y guardado de
+    los datos, haciendo el proceso más mantenible y fácil de probar.
     """
 
     def __init__(self, input_path: Path, output_path: Path):
@@ -77,7 +77,9 @@ class DatasetProcessor:
     def preprocess_data(self) -> "DatasetProcessor":
         if self.df is None:
             raise ValueError("El DataFrame no ha sido cargado.")
-        logger.info("Aplicando preprocesamiento: convirtiendo fechas y filtrando días no funcionales.")
+        logger.info(
+            "Aplicando preprocesamiento: convirtiendo fechas y filtrando días no funcionales."
+        )
         self._normalize_column_names()
         self.df["date"] = pd.to_datetime(self.df["date"], dayfirst=True)
         self.df = self.df[self.df["functioning_day"] == "Yes"].copy()
@@ -103,7 +105,7 @@ def main(
     output_path: Path = INTERIM_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
 ):
     """Ejecuta el pipeline completo de procesamiento de datos con logging en MLflow."""
-    
+
     # ---- Configurar MLflow con DagsHub ----
     load_dotenv()
     dagshub_repo = os.getenv("DAGSHUB_REPO")

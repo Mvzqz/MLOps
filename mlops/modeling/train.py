@@ -2,15 +2,18 @@
 
 import json
 import os
-import pickle
 from pathlib import Path
+import pickle
 from typing import Any, Dict, Optional
 
-import numpy as np
-import pandas as pd
-import typer
+import dagshub
 from dotenv import load_dotenv
 from loguru import logger
+import mlflow
+from mlflow.data.dataset_source import DatasetSource
+from mlflow.data.pandas_dataset import PandasDataset
+import numpy as np
+import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.experimental import enable_halving_search_cv  # noqa: F401
@@ -26,10 +29,7 @@ from sklearn.model_selection import (
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.svm import SVR
-import mlflow
-from mlflow.data.pandas_dataset import PandasDataset
-from mlflow.data.dataset_source import DatasetSource
-import dagshub
+import typer
 
 from mlops.config import (
     DEFAULT_CV,
@@ -58,7 +58,9 @@ if dagshub_user and dagshub_repo:
     mlflow.set_tracking_uri(f"https://dagshub.com/{dagshub_user}/{dagshub_repo}.mlflow")
     logger.info(f"MLflow tracking set to DagsHub: {dagshub_user}/{dagshub_repo}")
 else:
-    logger.warning("DAGSHUB_USER or DAGSHUB_REPO not found in environment. Using local MLflow tracking.")
+    logger.warning(
+        "DAGSHUB_USER or DAGSHUB_REPO not found in environment. Using local MLflow tracking."
+    )
 
 # -------------------------------------------------------------------
 # MODEL AND SEARCH REGISTRIES
@@ -95,12 +97,16 @@ class ModelTrainer:
 
         target_col = self.config["target_col"]
         if target_col not in df.columns:
-            raise ValueError(f"Columna objetivo '{target_col}' no encontrada. Columnas: {df.columns.tolist()}")
+            raise ValueError(
+                f"Columna objetivo '{target_col}' no encontrada. Columnas: {df.columns.tolist()}"
+            )
         # Eliminar filas donde la columna objetivo es NaN para evitar errores en el entrenamiento
         initial_rows = len(df)
         df.dropna(subset=[target_col], inplace=True)
         if len(df) < initial_rows:
-            logger.warning(f"Se eliminaron {initial_rows - len(df)} filas con valores nulos en la columna objetivo '{target_col}'.")
+            logger.warning(
+                f"Se eliminaron {initial_rows - len(df)} filas con valores nulos en la columna objetivo '{target_col}'."
+            )
 
         X = df.drop(columns=[target_col])
         y = df[target_col]
@@ -117,7 +123,9 @@ class ModelTrainer:
         """Construye el pipeline de preprocesamiento y modelo."""
         model_name = self.config["model_name"]
         if model_name not in MODEL_REGISTRY:
-            logger.error(f"Modelo '{model_name}' no encontrado. Disponibles: {list(MODEL_REGISTRY.keys())}")
+            logger.error(
+                f"Modelo '{model_name}' no encontrado. Disponibles: {list(MODEL_REGISTRY.keys())}"
+            )
             raise ValueError(f"Modelo '{model_name}' no disponible.")
 
         model_instance = MODEL_REGISTRY[model_name]()
@@ -155,7 +163,9 @@ class ModelTrainer:
 
         # --- Create MLflow run ---
         with mlflow.start_run(run_name=self.config["model_name"]):
-            mlflow.log_params({k: v for k, v in self.config.items() if isinstance(v, (int, float, str))})
+            mlflow.log_params(
+                {k: v for k, v in self.config.items() if isinstance(v, (int, float, str))}
+            )
 
             pipeline = self._build_pipeline()
             search = self._build_search_strategy(pipeline)
@@ -180,10 +190,7 @@ class ModelTrainer:
                 "format": "csv",
                 "type": "tabular",
                 "description": "Processed dataset with engineered features for bike sharing demand",
-                "tags": {
-                    "project": "Seoul Bike Sharing MLOps",
-                    "stage": "feature_engineering"
-                },
+                "tags": {"project": "Seoul Bike Sharing MLOps", "stage": "feature_engineering"},
                 "size_rows": len(self.X_train) + len(self.X_test),
                 "size_columns": len(self.X_train.columns),
             }
@@ -213,7 +220,9 @@ class ModelTrainer:
             mlflow.log_artifact(str(model_path))
             mlflow.sklearn.log_model(best_model, artifact_path="model")
 
-            logger.success(f"Modelo '{self.config['model_name']}' guardado y registrado en MLflow.")
+            logger.success(
+                f"Modelo '{self.config['model_name']}' guardado y registrado en MLflow."
+            )
 
 
 # -------------------------------------------------------------------

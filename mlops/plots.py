@@ -1,18 +1,17 @@
-"""
-Módulo para la generación de gráficos de análisis exploratorio de datos (EDA).
+"""Módulo para la generación de gráficos de análisis exploratorio de datos (EDA).
 
-Este script carga los datos procesados y genera visualizaciones clave para
-entender la distribución de los datos y las relaciones entre variables.
-Sigue un enfoque orientado a objetos para mayor modularidad.
+Este script carga los datos procesados y genera visualizaciones clave
+para entender la distribución de los datos y las relaciones entre
+variables. Sigue un enfoque orientado a objetos para mayor modularidad.
 """
 
 from pathlib import Path
 from typing import Optional
 
+from loguru import logger
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from loguru import logger
 import typer
 
 from mlops.config import FIGURES_DIR, PROCESSED_DATA_DIR, TARGET_COL
@@ -43,14 +42,14 @@ class PlotGenerator:
         """Genera y guarda todos los gráficos definidos."""
         if self.df is None:
             raise ValueError("El DataFrame no ha sido cargado. Llama a `load_data` primero.")
-        
+
         self.output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Generando gráficos en el directorio: {self.output_dir}")
 
         self._plot_target_distribution()
         self._plot_demand_by_hour()
         self._plot_correlation_heatmap()
-        
+
         logger.success("Todos los gráficos han sido generados exitosamente.")
 
     def _plot_target_distribution(self):
@@ -75,21 +74,24 @@ class PlotGenerator:
         plt.close()
 
     def _plot_correlation_heatmap(self):
-        """Genera y guarda un mapa de calor de la correlación entre variables numéricas."""
+        """Genera y guarda un mapa de calor de la correlación entre variables
+        numéricas."""
         plt.figure(figsize=(14, 10))
-        
+
         # Seleccionar solo columnas numéricas para la correlación
-        numeric_df = self.df.select_dtypes(include=['number'])
-        
+        numeric_df = self.df.select_dtypes(include=["number"])
+
         # Si no hay columnas numéricas, no se puede generar el gráfico
         if numeric_df.empty:
-            logger.warning("No se encontraron columnas numéricas para generar el mapa de calor de correlación.")
+            logger.warning(
+                "No se encontraron columnas numéricas para generar el mapa de calor de correlación."
+            )
             plt.close()
             return
-            
+
         corr_matrix = numeric_df.corr()
-        
-        sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm", linewidths=.5)
+
+        sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm", linewidths=0.5)
         plt.title("Mapa de Calor de Correlación de Variables Numéricas")
         plt.savefig(self.output_dir / "correlation_heatmap.png")
         plt.close()

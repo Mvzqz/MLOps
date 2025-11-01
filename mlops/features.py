@@ -1,22 +1,21 @@
-"""
-Módulo para la ingeniería de características del dataset Seoul Bike Sharing.
+"""Módulo para la ingeniería de características del dataset Seoul Bike Sharing.
 
-Este script carga el dataset limpio, crea nuevas características y guarda el
-dataset enriquecido. Sigue un enfoque orientado a objetos para mayor
-modularidad y mantenibilidad.
+Este script carga el dataset limpio, crea nuevas características y
+guarda el dataset enriquecido. Sigue un enfoque orientado a objetos para
+mayor modularidad y mantenibilidad.
 """
 
+import os
 from pathlib import Path
 from typing import Optional
-import os
 
-import numpy as np
-import pandas as pd
 import dagshub
+from dotenv import load_dotenv
+from loguru import logger
 import mlflow
 import mlflow.data.pandas_dataset
-from loguru import logger
-from dotenv import load_dotenv
+import numpy as np
+import pandas as pd
 import typer
 
 from mlops.config import INTERIM_DATA_DIR, PROCESSED_DATA_DIR
@@ -46,11 +45,11 @@ class FeatureEngineer:
         """Crea y añade nuevas características al DataFrame."""
         if self.df is None:
             raise ValueError("El DataFrame no ha sido cargado. Llama a `load_data` primero.")
-        
+
         self._clean_column_names()
         self.df["date"] = pd.to_datetime(self.df["date"], errors="coerce")
         self._convert_numeric_columns()
-        
+
         logger.info("Creando nuevas características...")
 
         # Imputar 'hour' antes de usarla para crear nuevas características
@@ -64,10 +63,10 @@ class FeatureEngineer:
 
         self._add_cyclical_features()
         self._add_interaction_features()
-        
+
         # Eliminar columnas que ya no son necesarias después de la ingeniería
         self.df = self.df.drop(columns=["date", "functioning_day", "holiday"], errors="ignore")
-        
+
         return self
 
     def _clean_column_names(self):
@@ -84,9 +83,8 @@ class FeatureEngineer:
         )
 
     def _convert_numeric_columns(self):
-        """
-        Convierte columnas que parecen numéricas (pero son 'object') a tipo numérico.
-        """        
+        """Convierte columnas que parecen numéricas (pero son 'object') a tipo
+        numérico."""
         logger.info("Intentando convertir columnas de tipo 'object' a numérico...")
         for col in self.df.select_dtypes(include=["object"]).columns:
             # Intentar convertir a numérico, ignorando errores para no-numéricos
@@ -95,7 +93,10 @@ class FeatureEngineer:
                 self.df[col] = self.df[col].astype("object")
                 continue
             numeric_col = pd.to_numeric(self.df[col], errors="coerce")
-            if self.df is not None and numeric_col.notna().sum() / len(self.df[col].dropna()) > 0.8:
+            if (
+                self.df is not None
+                and numeric_col.notna().sum() / len(self.df[col].dropna()) > 0.8
+            ):
                 self.df[col] = numeric_col
                 logger.info(f"  - Columna '{col}' convertida a numérico.")
 
