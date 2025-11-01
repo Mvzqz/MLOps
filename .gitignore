@@ -7,7 +7,6 @@
 # MLruns
 /mlruns/
 
-.env
 
 # Mac OS-specific storage files
 .DS_Store

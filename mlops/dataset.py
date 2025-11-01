@@ -1,23 +1,21 @@
-"""Módulo para la limpieza y preprocesamiento inicial del dataset Seoul Bike Sharing,
-
+"""
+Módulo para la limpieza y preprocesamiento inicial del dataset Seoul Bike Sharing,
 Funciones:
 - Carga el dataset crudo.
 - Normaliza los nombres de las columnas.
 - Convierte la columna de fecha a formato datetime.
 - Filtra los días no operativos.
-- Guarda el dataset procesado en la carpeta `processed` con registro de ejecución en MLflow mediante DagsHub.
+- Guarda el dataset procesado en la carpeta `processed`.con registro de ejecución en MLflow mediante DagsHub.
 """
 
-import os
 from pathlib import Path
 from typing import Optional
+import os
 
-import dagshub
-from dotenv import load_dotenv
-from loguru import logger
+import pandas as pd
 import mlflow
 import mlflow.data.pandas_dataset
-import pandas as pd
+from loguru import logger
 import typer
 
 from mlops.config import INTERIM_DATA_DIR, RAW_DATA_DIR, TARGET_COL
@@ -26,10 +24,11 @@ app = typer.Typer()
 
 
 class DatasetProcessor:
-    """Encapsula el pipeline de preprocesamiento de datos.
+    """
+    Encapsula el pipeline de preprocesamiento de datos.
 
-    Esta clase organiza la carga, limpieza, transformación y guardado de
-    los datos, haciendo el proceso más mantenible y fácil de probar.
+    Esta clase organiza la carga, limpieza, transformación y guardado de los datos,
+    haciendo el proceso más mantenible y fácil de probar.
     """
 
     def __init__(self, input_path: Path, output_path: Path):
@@ -77,9 +76,7 @@ class DatasetProcessor:
     def preprocess_data(self) -> "DatasetProcessor":
         if self.df is None:
             raise ValueError("El DataFrame no ha sido cargado.")
-        logger.info(
-            "Aplicando preprocesamiento: convirtiendo fechas y filtrando días no funcionales."
-        )
+        logger.info("Aplicando preprocesamiento: convirtiendo fechas y filtrando días no funcionales.")
         self._normalize_column_names()
         self.df["date"] = pd.to_datetime(self.df["date"], dayfirst=True)
         self.df = self.df[self.df["functioning_day"] == "Yes"].copy()
@@ -105,16 +102,16 @@ def main(
     output_path: Path = INTERIM_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
 ):
     """Ejecuta el pipeline completo de procesamiento de datos con logging en MLflow."""
-
+    
     # ---- Configurar MLflow con DagsHub ----
-    load_dotenv()
     dagshub_repo = os.getenv("DAGSHUB_REPO")
     dagshub_user = os.getenv("DAGSHUB_USER")
 
-    dagshub.init(repo_owner=dagshub_user, repo_name=dagshub_repo, mlflow=True)
-
     if dagshub_repo and dagshub_user:
+        tracking_uri = f"https://dagshub.com/{dagshub_user}/{dagshub_repo}.mlflow"
+        mlflow.set_tracking_uri(tracking_uri)
         mlflow.set_experiment("data_preprocessing")
+        logger.info(f"MLflow tracking activo en {tracking_uri}")
     else:
         logger.warning("Variables de entorno de DagsHub no configuradas. Se usará MLflow local.")
 
@@ -128,9 +125,15 @@ def main(
         # Loggear información del dataset
         if processor.df is not None:
             mlflow.log_metric("rows_processed", len(processor.df))
-            mlflow.log_metric("column_count", len(processor.df.columns))
-            mlflow.log_param("column_names", ", ".join(processor.df.columns.tolist()))
+            mlflow.log_metric("columns", len(processor.df.columns))
             mlflow.log_artifact(str(output_path), artifact_path="processed_data")
+
+            # También registrar el dataset como MLflow Dataset
+            mlflow.data.log_dataset(
+                mlflow.data.pandas_dataset.from_pandas(processor.df, source=str(input_path)),
+                context="cleaned_dataset",
+            )
+
         logger.success("Ejecución registrada en MLflow/DagsHub exitosamente.")
 
 
