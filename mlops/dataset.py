@@ -1,19 +1,20 @@
 """
 Módulo para la limpieza y preprocesamiento inicial del dataset Seoul Bike Sharing,
-siguiendo un enfoque estructurado y modular.
-
 Funciones:
 - Carga el dataset crudo.
 - Normaliza los nombres de las columnas.
 - Convierte la columna de fecha a formato datetime.
 - Filtra los días no operativos.
-- Guarda el dataset procesado en la carpeta `processed`.
+- Guarda el dataset procesado en la carpeta `processed`.con registro de ejecución en MLflow mediante DagsHub.
 """
 
 from pathlib import Path
 from typing import Optional
+import os
 
 import pandas as pd
+import mlflow
+import mlflow.data.pandas_dataset
 from loguru import logger
 import typer
 
@@ -73,15 +74,16 @@ class DatasetProcessor:
         return self
 
     def preprocess_data(self) -> "DatasetProcessor":
-        """Aplica las transformaciones de preprocesamiento."""
         if self.df is None:
             raise ValueError("El DataFrame no ha sido cargado.")
         logger.info("Aplicando preprocesamiento: convirtiendo fechas y filtrando días no funcionales.")
         self._normalize_column_names()
         self.df["date"] = pd.to_datetime(self.df["date"], dayfirst=True)
         self.df = self.df[self.df["functioning_day"] == "Yes"].copy()
-        # Renombrar la columna objetivo para que coincida con la configuración
-        self.df.rename(columns={"rented_bike_count": TARGET_COL.lower().replace(" ", "_")}, inplace=True)
+        self.df.rename(
+            columns={"rented_bike_count": TARGET_COL.lower().replace(" ", "_")},
+            inplace=True,
+        )
         return self
 
     def save_data(self) -> None:
@@ -99,12 +101,40 @@ def main(
     input_path: Path = RAW_DATA_DIR / "seoul_bike_sharing.csv",
     output_path: Path = INTERIM_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
 ):
-    """Ejecuta el pipeline completo de procesamiento de datos."""
-    processor = DatasetProcessor(input_path, output_path)
-    (processor.load_data()
-     .clean_data_values()
-     .preprocess_data()
-     .save_data())
+    """Ejecuta el pipeline completo de procesamiento de datos con logging en MLflow."""
+    
+    # ---- Configurar MLflow con DagsHub ----
+    dagshub_repo = os.getenv("DAGSHUB_REPO")
+    dagshub_user = os.getenv("DAGSHUB_USER")
+
+    if dagshub_repo and dagshub_user:
+        tracking_uri = f"https://dagshub.com/{dagshub_user}/{dagshub_repo}.mlflow"
+        mlflow.set_tracking_uri(tracking_uri)
+        mlflow.set_experiment("data_preprocessing")
+        logger.info(f"MLflow tracking activo en {tracking_uri}")
+    else:
+        logger.warning("Variables de entorno de DagsHub no configuradas. Se usará MLflow local.")
+
+    with mlflow.start_run(run_name="dataset_preprocessing"):
+        mlflow.log_param("input_path", str(input_path))
+        mlflow.log_param("output_path", str(output_path))
+
+        processor = DatasetProcessor(input_path, output_path)
+        processor.load_data().clean_data_values().preprocess_data().save_data()
+
+        # Loggear información del dataset
+        if processor.df is not None:
+            mlflow.log_metric("rows_processed", len(processor.df))
+            mlflow.log_metric("columns", len(processor.df.columns))
+            mlflow.log_artifact(str(output_path), artifact_path="processed_data")
+
+            # También registrar el dataset como MLflow Dataset
+            mlflow.data.log_dataset(
+                mlflow.data.pandas_dataset.from_pandas(processor.df, source=str(input_path)),
+                context="cleaned_dataset",
+            )
+
+        logger.success("Ejecución registrada en MLflow/DagsHub exitosamente.")
 
 
 if __name__ == "__main__":
