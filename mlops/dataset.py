@@ -6,6 +6,7 @@ Funciones:
 - Convierte la columna de fecha a formato datetime.
 - Filtra los días no operativos.
 - Guarda el dataset procesado en la carpeta `processed`.con registro de ejecución en MLflow mediante DagsHub.
+- Guarda el dataset procesado en la carpeta `processed`.con registro de ejecución en MLflow mediante DagsHub.
 """
 
 from pathlib import Path
