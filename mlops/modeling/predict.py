@@ -4,8 +4,8 @@ from pathlib import Path
 import pickle
 from typing import Optional
 
-import pandas as pd
 from loguru import logger
+import pandas as pd
 import typer
 
 from mlops.config import DEFAULT_MODEL_PATH, PROCESSED_DATA_DIR, TARGET_COL
@@ -49,7 +49,7 @@ class ModelPredictor:
         """Realiza predicciones sobre los datos cargados."""
         if self.model is None or self.df is None:
             raise ValueError("El modelo y los datos deben cargarse antes de predecir.")
-        
+
         logger.info("Realizando predicciones...")
         X = self.df.drop(columns=[TARGET_COL], errors="ignore")
         self.predictions = self.model.predict(X)

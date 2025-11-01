@@ -6,12 +6,13 @@ Funciones:
 - Convierte la columna de fecha a formato datetime.
 - Filtra los días no operativos.
 - Guarda el dataset procesado en la carpeta `processed`.con registro de ejecución en MLflow mediante DagsHub.
+- Guarda el dataset procesado en la carpeta `processed`.con registro de ejecución en MLflow mediante DagsHub.
 """
 
 from pathlib import Path
 from typing import Optional
 import os
-
+import dagshub
 import pandas as pd
 import mlflow
 import mlflow.data.pandas_dataset
@@ -105,13 +106,13 @@ def main(
     
     # ---- Configurar MLflow con DagsHub ----
     dagshub_repo = os.getenv("DAGSHUB_REPO")
-    dagshub_user = os.getenv("DAGSHUB_USER")
+    dagshub_user = os.getenv("DAGSHUB_USERNAME")
+    print(dagshub_repo, dagshub_user)
+    print(os.environ["DAGSHUB_TOKEN"])
 
     if dagshub_repo and dagshub_user:
-        tracking_uri = f"https://dagshub.com/{dagshub_user}/{dagshub_repo}.mlflow"
-        mlflow.set_tracking_uri(tracking_uri)
+        dagshub.init(repo_owner=dagshub_user, repo_name=dagshub_repo, mlflow=True)
         mlflow.set_experiment("data_preprocessing")
-        logger.info(f"MLflow tracking activo en {tracking_uri}")
     else:
         logger.warning("Variables de entorno de DagsHub no configuradas. Se usará MLflow local.")
 
@@ -127,12 +128,6 @@ def main(
             mlflow.log_metric("rows_processed", len(processor.df))
             mlflow.log_metric("columns", len(processor.df.columns))
             mlflow.log_artifact(str(output_path), artifact_path="processed_data")
-
-            # También registrar el dataset como MLflow Dataset
-            mlflow.data.log_dataset(
-                mlflow.data.pandas_dataset.from_pandas(processor.df, source=str(input_path)),
-                context="cleaned_dataset",
-            )
 
         logger.success("Ejecución registrada en MLflow/DagsHub exitosamente.")
 
