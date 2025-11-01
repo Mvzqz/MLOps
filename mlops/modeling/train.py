@@ -54,13 +54,13 @@ app = typer.Typer()
 # -------------------------------------------------------------------
 load_dotenv()
 
-dagshub_user = os.getenv("DAGSHUB_USERNAME")
+dagshub_owner = os.getenv("DAGSHUB_OWNER")
 dagshub_repo = os.getenv("DAGSHUB_REPO")
 
-if dagshub_user and dagshub_repo:
-    dagshub.init(repo_owner=dagshub_user, repo_name=dagshub_repo, mlflow=True)
-    mlflow.set_tracking_uri(f"https://dagshub.com/{dagshub_user}/{dagshub_repo}.mlflow")
-    logger.info(f"MLflow tracking set to DagsHub: {dagshub_user}/{dagshub_repo}")
+if dagshub_owner and dagshub_repo:
+    dagshub.init(repo_owner=dagshub_owner, repo_name=dagshub_repo, mlflow=True)
+    mlflow.set_tracking_uri(f"https://dagshub.com/{dagshub_owner}/{dagshub_repo}.mlflow")
+    logger.info(f"MLflow tracking set to DagsHub: {dagshub_owner}/{dagshub_repo}")
 else:
     logger.warning(
         "DAGSHUB_USER or DAGSHUB_REPO not found in environment. Using local MLflow tracking."
