@@ -106,12 +106,10 @@ def main(
     
     # ---- Configurar MLflow con DagsHub ----
     dagshub_repo = os.getenv("DAGSHUB_REPO")
-    dagshub_user = os.getenv("DAGSHUB_USERNAME")
-    print(dagshub_repo, dagshub_user)
-    print(os.environ["DAGSHUB_TOKEN"])
+    dagshub_owner = os.getenv("DAGSHUB_OWNER")
 
-    if dagshub_repo and dagshub_user:
-        dagshub.init(repo_owner=dagshub_user, repo_name=dagshub_repo, mlflow=True)
+    if dagshub_repo and dagshub_owner:
+        dagshub.init(repo_owner=dagshub_owner, repo_name=dagshub_repo, mlflow=True)
         mlflow.set_experiment("data_preprocessing")
     else:
         logger.warning("Variables de entorno de DagsHub no configuradas. Se usará MLflow local.")
