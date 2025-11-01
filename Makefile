@@ -94,6 +94,12 @@ predict: train
 run-pipeline: predict
 	@echo "✅ Full pipeline (data -> features -> train -> predict) completed successfully."
 
+## Run the full data science pipeline
+.PHONY: experiments
+run-pipeline: 
+	poetry run $(PYTHON_INTERPRETER) ./run_experiments.py
+
+
 #################################################################################
 # Self Documenting Commands                                                     #
 #################################################################################
