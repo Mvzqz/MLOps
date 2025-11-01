@@ -127,7 +127,7 @@ def main(
         if processor.df is not None:
             mlflow.log_metric("rows_processed", len(processor.df))
             mlflow.log_metric("column_count", len(processor.df.columns))
-            mlflow.log_param("feature_names", ", ".join(processor.df.columns.tolist()))
+            mlflow.log_param("column_names", ", ".join(processor.df.columns.tolist()))
             mlflow.log_artifact(str(output_path), artifact_path="processed_data")
         logger.success("Ejecución registrada en MLflow/DagsHub exitosamente.")
 

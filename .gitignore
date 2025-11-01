@@ -4,6 +4,8 @@
 # Models
 /models/
 
+# MLruns
+/mlruns/
 
 .env
 

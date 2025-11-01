@@ -8,10 +8,15 @@ modularidad y mantenibilidad.
 
 from pathlib import Path
 from typing import Optional
+import os
 
 import numpy as np
 import pandas as pd
+import dagshub
+import mlflow
+import mlflow.data.pandas_dataset
 from loguru import logger
+from dotenv import load_dotenv
 import typer
 
 from mlops.config import INTERIM_DATA_DIR, PROCESSED_DATA_DIR
@@ -81,7 +86,7 @@ class FeatureEngineer:
     def _convert_numeric_columns(self):
         """
         Convierte columnas que parecen numéricas (pero son 'object') a tipo numérico.
-        """
+        """        
         logger.info("Intentando convertir columnas de tipo 'object' a numérico...")
         for col in self.df.select_dtypes(include=["object"]).columns:
             # Intentar convertir a numérico, ignorando errores para no-numéricos
@@ -89,10 +94,7 @@ class FeatureEngineer:
             if col == "mixed_type_col":
                 self.df[col] = self.df[col].astype("object")
                 continue
-
             numeric_col = pd.to_numeric(self.df[col], errors="coerce")
-            
-            # Si una porción significativa de la columna es numérica, la convertimos
             if self.df is not None and numeric_col.notna().sum() / len(self.df[col].dropna()) > 0.8:
                 self.df[col] = numeric_col
                 logger.info(f"  - Columna '{col}' convertida a numérico.")
@@ -115,7 +117,9 @@ class FeatureEngineer:
     def _add_interaction_features(self):
         """Añade características de negocio y de interacción."""
         self.df["is_rush_hour"] = self.df["hour"].isin([7, 8, 9, 17, 18, 19]).astype(int)
-        self.df["is_holiday_or_weekend"] = ((self.df["is_weekend"] == 1) | (self.df["holiday"] == "Holiday")).astype(int)
+        self.df["is_holiday_or_weekend"] = (
+            (self.df["is_weekend"] == 1) | (self.df["holiday"] == "Holiday")
+        ).astype(int)
 
     def save_data(self) -> None:
         """Guarda el DataFrame con características en el `output_path`."""
@@ -126,16 +130,40 @@ class FeatureEngineer:
         self.df.to_csv(self.output_path, index=False)
         logger.success("Ingeniería de características y guardado completados.")
 
+
 @app.command()
 def main(
     input_path: Path = INTERIM_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
     output_path: Path = PROCESSED_DATA_DIR / "seoul_bike_sharing_featured.csv",
 ):
-    """Ejecuta el pipeline completo de ingeniería de características."""
-    engineer = FeatureEngineer(input_path, output_path)
-    (engineer.load_data()
-     .create_features()
-     .save_data())
+    """Ejecuta el pipeline completo de ingeniería de características con MLflow."""
+
+    # ---- Configurar MLflow con DagsHub ----
+    load_dotenv()
+    dagshub_user = os.getenv("DAGSHUB_USER")
+    dagshub_repo = os.getenv("DAGSHUB_REPO")
+    dagshub.init(repo_owner=dagshub_user, repo_name=dagshub_repo, mlflow=True)
+
+    if dagshub_repo and dagshub_user:
+        mlflow.set_experiment("feature_engineering")
+    else:
+        logger.warning("Variables de entorno de DagsHub no configuradas. Se usará MLflow local.")
+
+    with mlflow.start_run(run_name="feature_engineering"):
+        mlflow.log_param("input_path", str(input_path))
+        mlflow.log_param("output_path", str(output_path))
+
+        engineer = FeatureEngineer(input_path, output_path)
+        engineer.load_data().create_features().save_data()
+
+        if engineer.df is not None:
+            n_features = len(engineer.df.columns)
+            n_rows = len(engineer.df)
+            mlflow.log_metric("rows", n_rows)
+            mlflow.log_metric("feature_count", len(engineer.df.columns))
+            mlflow.log_param("feature_names", ", ".join(engineer.df.columns.tolist()))
+            mlflow.log_artifact(str(output_path), artifact_path="processed_data")
+        logger.success("Ejecución registrada en MLflow/DagsHub exitosamente.")
 
 
 if __name__ == "__main__":
