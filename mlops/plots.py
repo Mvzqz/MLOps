@@ -15,7 +15,7 @@ import seaborn as sns
 from loguru import logger
 import typer
 
-from mlops.config import FIGURES_DIR, INTERIM_DATA_DIR, TARGET_COL
+from mlops.config import FIGURES_DIR, PROCESSED_DATA_DIR, TARGET_COL
 
 app = typer.Typer()
 
@@ -97,7 +97,7 @@ class PlotGenerator:
 
 @app.command()
 def main(
-    input_path: Path = INTERIM_DATA_DIR / "seoul_bike_sharing_featured.csv",
+    input_path: Path = PROCESSED_DATA_DIR / "seoul_bike_sharing_featured.csv",
     output_dir: Path = FIGURES_DIR,
 ):
     """Ejecuta el pipeline completo de generación de gráficos de EDA."""

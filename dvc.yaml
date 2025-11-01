@@ -1,44 +1,44 @@
 stages:
   dataset:
-    cmd: poetry run $PYTHON_INTERPRETER -m mlops.dataset
+    cmd: poetry run python -m mlops.dataset
     deps:
       - data/raw/seoul_bike_sharing.csv
-      - src/mlops/dataset.py
+      - mlops/dataset.py
     outs:
       - data/interim/seoul_bike_sharing_cleaned.csv
 
   features:
-    cmd: poetry run $PYTHON_INTERPRETER -m mlops.features
+    cmd: poetry run python -m mlops.features
     deps:
       - data/interim/seoul_bike_sharing_cleaned.csv
-      - src/mlops/features.py
+      - mlops/features.py
     outs:
       - data/processed/seoul_bike_sharing_featured.csv
 
   train:
-    cmd: poetry run $PYTHON_INTERPRETER -m mlops.train
+    cmd: poetry run python -m mlops.modeling.train
     deps:
       - data/processed/seoul_bike_sharing_featured.csv
-      - src/mlops/train.py
+      - mlops/modeling/train.py
     outs:
       - models/best_model.pkl
 
   predict:
-    cmd: poetry run $PYTHON_INTERPRETER -m mlops.predict
+    cmd: poetry run python -m mlops.modeling.predict
     deps:
       - data/processed/seoul_bike_sharing_featured.csv
       - models/best_model.pkl
-      - src/mlops/predict.py
+      - mlops/modeling/predict.py
     outs:
       - data/processed/test_predictions.csv
 
   plots:
-    cmd: poetry run $PYTHON_INTERPRETER -m mlops.plots
+    cmd: poetry run python -m mlops.plots
     deps:
       - data/processed/seoul_bike_sharing_featured.csv
       - models/best_model.pkl
       - data/processed/test_predictions.csv
-      - src/mlops/plots.py
+      - mlops/plots.py
     outs:
       - reports/figures/correlation_heatmap.png
       - reports/figures/demand_by_hour.png

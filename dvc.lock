@@ -19,20 +19,102 @@ stages:
       md5: a01a780c8cb1958d1f29ca64cf97ca1b
       size: 762811
   features:
-    cmd: python src/mlops_pruebas/features/build_features.py 
-      data/clean/clean_seoul_bike_data.csv 
-      data/features/features_seoul_bike_data.csv
+    cmd: poetry run python -m mlops.features
     deps:
-    - path: data/clean/clean_seoul_bike_data.csv
+    - path: data/interim/seoul_bike_sharing_cleaned.csv
       hash: md5
-      md5: a01a780c8cb1958d1f29ca64cf97ca1b
-      size: 762811
-    - path: src/mlops_pruebas/features/build_features.py
+      md5: ce45aa3fd7a2363439fb6858343c5b85
+      size: 689691
+    - path: mlops/features.py
       hash: md5
-      md5: 633094659748a4384338f0229fa20842
-      size: 1867
+      md5: 56b3e6a58ed29efb2f518ce0997cd481
+      size: 5851
     outs:
-    - path: data/features/features_seoul_bike_data.csv
+    - path: data/processed/seoul_bike_sharing_featured.csv
       hash: md5
-      md5: af0b347b3be1b869bf5e329d544f6022
-      size: 1069772
+      md5: 448491a4f48224a89cc582a82295c4a9
+      size: 1254470
+  dataset:
+    cmd: poetry run python -m mlops.dataset
+    deps:
+    - path: data/raw/seoul_bike_sharing.csv
+      hash: md5
+      md5: 0666539abbace0cc2c12df17b06046d9
+      size: 771920
+    - path: mlops/dataset.py
+      hash: md5
+      md5: 3ac80581836528626ee338c7aa557674
+      size: 4242
+    outs:
+    - path: data/interim/seoul_bike_sharing_cleaned.csv
+      hash: md5
+      md5: ce45aa3fd7a2363439fb6858343c5b85
+      size: 689691
+  train:
+    cmd: poetry run python -m mlops.modeling.train
+    deps:
+    - path: data/processed/seoul_bike_sharing_featured.csv
+      hash: md5
+      md5: 448491a4f48224a89cc582a82295c4a9
+      size: 1254470
+    - path: mlops/modeling/train.py
+      hash: md5
+      md5: 0dae409a56384de68e72c6c7900fa720
+      size: 8731
+    outs:
+    - path: models/best_model.pkl
+      hash: md5
+      md5: ec9c40592fd969f5727db56161ff9074
+      size: 424480
+  predict:
+    cmd: poetry run python -m mlops.modeling.predict
+    deps:
+    - path: data/processed/seoul_bike_sharing_featured.csv
+      hash: md5
+      md5: 448491a4f48224a89cc582a82295c4a9
+      size: 1254470
+    - path: mlops/modeling/predict.py
+      hash: md5
+      md5: d05e8d54fb966b4dfe59cd105a518a48
+      size: 2911
+    - path: models/best_model.pkl
+      hash: md5
+      md5: ec9c40592fd969f5727db56161ff9074
+      size: 424480
+    outs:
+    - path: data/processed/test_predictions.csv
+      hash: md5
+      md5: 2d876ef5c1c1ec560e78bfda5ccacd06
+      size: 199113
+  plots:
+    cmd: poetry run python -m mlops.plots
+    deps:
+    - path: data/processed/seoul_bike_sharing_featured.csv
+      hash: md5
+      md5: 448491a4f48224a89cc582a82295c4a9
+      size: 1254470
+    - path: data/processed/test_predictions.csv
+      hash: md5
+      md5: 2d876ef5c1c1ec560e78bfda5ccacd06
+      size: 199113
+    - path: mlops/plots.py
+      hash: md5
+      md5: 5a49a7be2ce567f94cc3c5d6c4f82107
+      size: 4056
+    - path: models/best_model.pkl
+      hash: md5
+      md5: ec9c40592fd969f5727db56161ff9074
+      size: 424480
+    outs:
+    - path: reports/figures/correlation_heatmap.png
+      hash: md5
+      md5: c5129bcaf35dc4dfb2e01764222e18d7
+      size: 264762
+    - path: reports/figures/demand_by_hour.png
+      hash: md5
+      md5: dc6b677b093f739e63b3f5e96ad28ade
+      size: 53768
+    - path: reports/figures/target_distribution.png
+      hash: md5
+      md5: 43740887049a8ab198b9c05f7ac59163
+      size: 32163
