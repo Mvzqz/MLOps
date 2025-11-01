@@ -17,7 +17,7 @@ import pandas as pd
 from loguru import logger
 import typer
 
-from mlops.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, TARGET_COL
+from mlops.config import INTERIM_DATA_DIR, RAW_DATA_DIR, TARGET_COL
 
 app = typer.Typer()
 
@@ -97,7 +97,7 @@ class DatasetProcessor:
 @app.command()
 def main(
     input_path: Path = RAW_DATA_DIR / "seoul_bike_sharing.csv",
-    output_path: Path = PROCESSED_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
+    output_path: Path = INTERIM_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
 ):
     """Ejecuta el pipeline completo de procesamiento de datos."""
     processor = DatasetProcessor(input_path, output_path)

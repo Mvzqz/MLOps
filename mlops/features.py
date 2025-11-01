@@ -14,7 +14,7 @@ import pandas as pd
 from loguru import logger
 import typer
 
-from mlops.config import PROCESSED_DATA_DIR
+from mlops.config import INTERIM_DATA_DIR, PROCESSED_DATA_DIR
 
 app = typer.Typer()
 
@@ -128,7 +128,7 @@ class FeatureEngineer:
 
 @app.command()
 def main(
-    input_path: Path = PROCESSED_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
+    input_path: Path = INTERIM_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
     output_path: Path = PROCESSED_DATA_DIR / "seoul_bike_sharing_featured.csv",
 ):
     """Ejecuta el pipeline completo de ingeniería de características."""
