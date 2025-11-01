@@ -8,11 +8,12 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 from loguru import logger
 import pandas as pd
+from xgboost import XGBRegressor
 from sklearn.ensemble import (
+    RandomForestRegressor,
     HistGradientBoostingRegressor,
 )
 from sklearn.experimental import enable_halving_search_cv  # noqa: F401
-from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import (
     GridSearchCV,
@@ -20,7 +21,7 @@ from sklearn.model_selection import (
     HalvingRandomSearchCV,
     TimeSeriesSplit,
 )
-from sklearn.svm import SVC, SVR
+from sklearn.svm import SVR
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
@@ -46,10 +47,10 @@ app = typer.Typer()
 # MODEL AND SEARCH REGISTRIES
 # -------------------------------------------------------------------
 MODEL_REGISTRY = {
-    "logistic_regression": LogisticRegression,
-    "linear_regression": LinearRegression,
     "svr": SVR,
     "hist_gradient_boosting_regressor": HistGradientBoostingRegressor,
+    "random_forest_regressor": RandomForestRegressor,
+    "xgb_regressor": XGBRegressor,
     # Agrega aquí otros modelos de regresión o clasificación
 }
 
