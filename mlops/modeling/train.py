@@ -50,7 +50,7 @@ app = typer.Typer()
 # -------------------------------------------------------------------
 load_dotenv()
 
-dagshub_user = os.getenv("DAGSHUB_USER")
+dagshub_user = os.getenv("DAGSHUB_USERNAME")
 dagshub_repo = os.getenv("DAGSHUB_REPO")
 
 if dagshub_user and dagshub_repo:

@@ -141,7 +141,7 @@ def main(
 
     # ---- Configurar MLflow con DagsHub ----
     load_dotenv()
-    dagshub_user = os.getenv("DAGSHUB_USER")
+    dagshub_user = os.getenv("DAGSHUB_USERNAME")
     dagshub_repo = os.getenv("DAGSHUB_REPO")
     dagshub.init(repo_owner=dagshub_user, repo_name=dagshub_repo, mlflow=True)
 
