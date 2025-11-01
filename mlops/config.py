@@ -46,6 +46,15 @@ DEFAULT_PARAM_GRID = {
     "model__max_iter": [100, 200],
     "model__min_samples_leaf": [10, 30],
     "model__l2_regularization": [0.0, 0.1],
+    "model__n_estimators": [500],
+    "model__random_state": [42],
+    "model__min_sample_leaf": [2],
+    "model__max_features": ['sqrt'],
+    "model__n_jobs": [-1],
+    "model__subsample": [0.8],
+    "model__colsample_bytree": [0.8],
+    "model__reg_lambda": [1.0]
+    "model__tree_method": ['hist']
 }
 
 DEFAULT_METRIC = "r2"  # r2 works well for regression
