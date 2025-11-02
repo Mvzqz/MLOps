@@ -29,7 +29,6 @@ from sklearn.model_selection import (
     HalvingRandomSearchCV,
     TimeSeriesSplit,
 )
-from sklearn.svm import SVR
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.svm import SVR
@@ -40,6 +39,7 @@ from mlops.config import (
     DEFAULT_METRIC,
     DEFAULT_MODEL_NAME,
     DEFAULT_MODEL_PATH,
+    DEFAULT_MODEL_PATH, PARAM_GRIDS,
     DEFAULT_PARAM_GRID,
     DEFAULT_SEARCH_MODE,
     DEFAULT_SEARCH_PARAMS,
@@ -70,7 +70,6 @@ else:
 # MODEL AND SEARCH REGISTRIES
 # -------------------------------------------------------------------
 MODEL_REGISTRY = {
-    "svr": SVR,
     "hist_gradient_boosting_regressor": HistGradientBoostingRegressor,
     "random_forest_regressor": RandomForestRegressor,
     "xgb_regressor": XGBRegressor,
@@ -151,6 +150,20 @@ class ModelTrainer:
         """Configura la búsqueda de hiperparámetros."""
         search_mode = self.config["search_mode"]
         search_class = SEARCH_REGISTRY[search_mode]
+
+        # Filtra los parámetros de búsqueda para que solo se pasen los relevantes
+        # para la clase de búsqueda seleccionada.
+        valid_search_params = {
+            "grid": [],
+            "halving_grid": ["factor", "min_resources", "random_state"],
+            "halving_random": ["factor", "min_resources", "random_state"],
+        }
+
+        relevant_params = {
+            k: v for k, v in self.config["search_params"].items()
+            if k in valid_search_params.get(search_mode, [])
+        }
+
         time_series_cv = TimeSeriesSplit(n_splits=self.config["cv"])
         return search_class(
             estimator=pipeline,
@@ -159,7 +172,7 @@ class ModelTrainer:
             cv=time_series_cv,
             n_jobs=-1,
             verbose=1,
-            **self.config["search_params"],
+            **relevant_params,
         )
 
     def run(self):
@@ -238,7 +251,7 @@ def main(
     dataset_path: Path = PROCESSED_DATA_DIR / "seoul_bike_sharing_featured.csv",
     target_col: str = TARGET_COL,
     model_name: str = DEFAULT_MODEL_NAME,
-    param_grid: str = json.dumps(DEFAULT_PARAM_GRID),
+    param_grid: Optional[str] = None,
     metric: str = DEFAULT_METRIC,
     search_mode: str = DEFAULT_SEARCH_MODE,
     search_params: str = json.dumps(DEFAULT_SEARCH_PARAMS),
@@ -247,11 +260,16 @@ def main(
     model_path: Path = DEFAULT_MODEL_PATH,
 ):
     """Entrena, tunea y evalúa un modelo usando MLflow + DagsHub."""
+    # Si no se proporciona una grilla de parámetros, usa la predeterminada para el modelo.
+    if param_grid is None:
+        grid = PARAM_GRIDS.get(model_name, DEFAULT_PARAM_GRID)
+    else:
+        grid = json.loads(param_grid)
     training_config = {
         "dataset_path": dataset_path,
         "target_col": target_col,
         "model_name": model_name,
-        "param_grid": json.loads(param_grid),
+        "param_grid": grid,
         "metric": metric,
         "search_mode": search_mode,
         "search_params": json.loads(search_params),
