@@ -53,7 +53,7 @@ DEFAULT_PARAM_GRID = {
     "model__n_jobs": [-1],
     "model__subsample": [0.8],
     "model__colsample_bytree": [0.8],
-    "model__reg_lambda": [1.0]
+    "model__reg_lambda": [1.0],
     "model__tree_method": ['hist']
 }
 
