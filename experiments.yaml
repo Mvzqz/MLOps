@@ -1,24 +1,19 @@
 # Experimento base con el modelo por defecto
 baseline_hgb:
   model_name: "hist_gradient_boosting_regressor"
-  param_grid:
-    model__max_depth: [5, 10, null]
-    model__learning_rate: [0.05, 0.1]
-    model__max_iter: [100, 200]
-  search_mode: "halving_grid"
+  # No param_grid needed, will use default from config.py
+
+baseline_rfr:
+  model_name: "random_forest_regressor"
+
+baseline_xgb:
+  model_name: "xgb_regressor"
 
 # Experimento para probar regularización en HGB
 hgb_with_l2:
   model_name: "hist_gradient_boosting_regressor"
   param_grid:
-    model__learning_rate: [0.05, 0.1]
+    # Override default to test only l2_regularization
     model__l2_regularization: [0.0, 0.1, 0.5]
   search_mode: "grid"
-
-# Experimento con SVR (Support Vector Regressor)
-svr_experiment:
-  model_name: "svr"
-  param_grid:
-    model__C: [0.1, 1, 10]
-    model__kernel: ["linear", "rbf"]
-  search_mode: "grid"
+  metric: "neg_mean_squared_error"

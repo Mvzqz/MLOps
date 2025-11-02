@@ -1,5 +1,6 @@
 import yaml
 import subprocess
+import sys
 import json
 from pathlib import Path
 
@@ -18,17 +19,18 @@ def run_experiment(experiment_name: str, config: dict):
 
     # Construye el comando para llamar a train.py
     command = [
-        "python",
+        sys.executable,
         str(train_script_path),
     ]
 
     # Agrega los argumentos desde el archivo de configuración
     for key, value in config.items():
+        arg_name = f"--{key.replace('_', '-')}"
         # Los parámetros de grilla/búsqueda se deben pasar como strings JSON
         if isinstance(value, dict):
-            command.extend([f"--{key}", json.dumps(value)])
+            command.extend([arg_name, json.dumps(value)])
         else:
-            command.extend([f"--{key}", str(value)])
+            command.extend([arg_name, str(value)])
 
     try:
         # Ejecuta el comando
