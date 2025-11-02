@@ -9,6 +9,7 @@ baseline_rfr:
 baseline_xgb:
   model_name: "xgb_regressor"
 
+
 # Experimento para probar regularización en HGB
 hgb_with_l2:
   model_name: "hist_gradient_boosting_regressor"
