@@ -95,16 +95,16 @@ stages:
       size: 1254470
     - path: data/processed/test_predictions.csv
       hash: md5
-      md5: 2d876ef5c1c1ec560e78bfda5ccacd06
-      size: 199113
+      md5: 3d99e777b86e707c6c66737ee36362be
+      size: 199511
     - path: mlops/plots.py
       hash: md5
       md5: 6dab63d5169a87cfe51e772d704b26d4
       size: 4042
     - path: models/best_model.pkl
       hash: md5
-      md5: 65925fdd7cfdc43695e49db6df17c279
-      size: 338232
+      md5: 4eb3295d3ed3177371a4a5b2aaebf3db
+      size: 1847470
     outs:
     - path: reports/figures/correlation_heatmap.png
       hash: md5
