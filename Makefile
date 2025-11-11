@@ -55,8 +55,10 @@ create_environment:
 	@echo '$$(poetry env activate)'
 	@echo ">>> Or run commands with:\npoetry run <command>"
 
-
-
+## Run API server
+.PHONY: run-api
+run-api:
+	poetry run fastapi run app/main.py
 
 #################################################################################
 # PROJECT RULES                                                                 #
