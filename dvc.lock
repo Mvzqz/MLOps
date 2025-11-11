@@ -59,13 +59,13 @@ stages:
       size: 1254470
     - path: mlops/modeling/train.py
       hash: md5
-      md5: b6fe621e17a7a4d2da82aeffb6dd69a4
-      size: 10187
+      md5: 30acd69de07fa0147f23cef8b509c3dc
+      size: 10880
     outs:
     - path: models/best_model.pkl
       hash: md5
-      md5: 65925fdd7cfdc43695e49db6df17c279
-      size: 338232
+      md5: 4eb3295d3ed3177371a4a5b2aaebf3db
+      size: 1847470
   predict:
     cmd: poetry run python -m mlops.modeling.predict
     deps:
@@ -79,13 +79,13 @@ stages:
       size: 2903
     - path: models/best_model.pkl
       hash: md5
-      md5: 65925fdd7cfdc43695e49db6df17c279
-      size: 338232
+      md5: 4eb3295d3ed3177371a4a5b2aaebf3db
+      size: 1847470
     outs:
     - path: data/processed/test_predictions.csv
       hash: md5
-      md5: 2d876ef5c1c1ec560e78bfda5ccacd06
-      size: 199113
+      md5: 3d99e777b86e707c6c66737ee36362be
+      size: 199511
   plots:
     cmd: poetry run python -m mlops.plots
     deps:
