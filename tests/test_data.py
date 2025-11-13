@@ -1,9 +1,13 @@
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import pytest
 import pandas as pd
 from pathlib import Path
 from mlops.dataset import DatasetProcessor
 import tempfile
 import os
+import typer
 
 # Datos de ejemplo para pruebas
 RAW_DATA = pd.DataFrame({
@@ -34,9 +38,9 @@ def test_load_data_success(temp_csv, output_csv):
 	assert len(processor.df) == 3
 
 def test_load_data_file_not_found(output_csv):
-	processor = DatasetProcessor(Path('no_existe.csv'), output_csv)
-	with pytest.raises(SystemExit):
-		processor.load_data()
+    processor = DatasetProcessor(Path('no_existe.csv'), output_csv)
+    with pytest.raises(typer.Exit):
+        processor.load_data()
 
 def test_clean_data_values(temp_csv, output_csv):
 	processor = DatasetProcessor(temp_csv, output_csv)
