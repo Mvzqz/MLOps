@@ -41,21 +41,21 @@ def create_features(df: pd.DataFrame) -> pd.DataFrame:
         df.dropna(subset=["date"], inplace=True)
 
     # 1. Time-based features
-    df["year"] = df["date"].dt.year
-    df["month"] = df["date"].dt.month
-    df["dayofyear"] = df["date"].dt.dayofyear
+    df["year"] = df["date"].dt.year.astype("Int64")
+    df["month"] = df["date"].dt.month.astype("Int64")
+    df["dayofyear"] = df["date"].dt.dayofyear.astype("Int64")
     df["weekofyear"] = df["date"].dt.isocalendar().week.astype("Int64")
-    df["quarter"] = df["date"].dt.quarter
-    df["day"] = df["date"].dt.day
-    df["dayofweek"] = df["date"].dt.dayofweek  # Monday=0, Sunday=6
-    df["is_weekend"] = df["dayofweek"].isin([5, 6]).astype(int)
+    df["quarter"] = df["date"].dt.quarter.astype("Int64")
+    df["day"] = df["date"].dt.day.astype("Int64")
+    df["dayofweek"] = df["date"].dt.dayofweek.astype("Int64")  # Monday=0, Sunday=6
+    df["is_weekend"] = df["dayofweek"].isin([5, 6]).astype("Int64")
 
     # Ensure 'hour' is a numeric type and handle potential errors
     if "hour" in df.columns:
         df["hour"] = pd.to_numeric(df["hour"], errors="coerce")
         # Clip values to be within the valid range [0, 23] and fill NaNs
         df["hour"] = df["hour"].clip(0, 23).fillna(df["hour"].median())
-        df["hour"] = df["hour"].astype(int)
+        df["hour"] = df["hour"].astype("Int64")
 
     # 2. Cyclical features
     df["hour_sin"] = np.sin(2 * np.pi * df["hour"] / 24.0)
@@ -66,13 +66,13 @@ def create_features(df: pd.DataFrame) -> pd.DataFrame:
     df["dayofweek_cos"] = np.cos(2 * np.pi * df["dayofweek"] / 7.0)
 
     # 3. Interaction & derived features
-    df["is_rush_hour"] = df["hour"].isin([7, 8, 9, 17, 18, 19]).astype(int)
+    df["is_rush_hour"] = df["hour"].isin([7, 8, 9, 17, 18, 19]).astype("Int64")
 
     # Handle 'holiday' column if it exists
     if "holiday" in df.columns:
         is_holiday = df["holiday"].astype(str).str.lower().isin(["holiday", "yes", "1", "true"])
         df["is_holiday_or_weekend"] = (df["is_weekend"] == 1) | is_holiday
-        df["is_holiday_or_weekend"] = df["is_holiday_or_weekend"].astype(int)
+        df["is_holiday_or_weekend"] = df["is_holiday_or_weekend"].astype("Int64")
         df = df.drop(columns=["holiday"], errors="ignore")
 
     # Ensure weather columns are numeric before creating interactions
