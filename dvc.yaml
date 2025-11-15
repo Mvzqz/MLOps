@@ -23,15 +23,15 @@ stages:
       - mlops/modeling/train.py
       - run_experiments.py
       - experiments.yaml
-    # Esta etapa ya no produce un archivo local, solo registra en MLflow.
-    # Por lo tanto, no tiene 'outs'.
+    # This stage no longer produces a local file, it only logs to MLflow.
+    # Therefore, it has no 'outs'.
 
   promote_model:
-    # Este script consulta MLflow y guarda el mejor modelo.
+    # This script queries MLflow and saves the best model.
     cmd: poetry run python run_promote_model.py
     deps:
       - run_promote_model.py
-    # DVC ahora rastrea el modelo que este script produce.
+    # DVC now tracks the model that this script produces.
     outs:
       - models/best_model.pkl
 

@@ -21,9 +21,7 @@ RAW_DATA_DIR = DATA_DIR / "raw"
 INTERIM_DATA_DIR = DATA_DIR / "interim"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
-
 MODELS_DIR = PROJ_ROOT / "models"
-
 REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
 
@@ -48,6 +46,7 @@ PARAM_GRIDS = {
         "model__learning_rate": [0.08, 0.1],
         "model__max_iter": [400, 500],
         "model__l2_regularization": [0.0, 0.5],
+        "model__random_state": [RANDOM_SEED],
     },
     "random_forest_regressor": {
         "model__n_estimators": [500],
@@ -73,8 +72,8 @@ PARAM_GRIDS = {
 # Default param_grid if none is specified for a model
 DEFAULT_PARAM_GRID = PARAM_GRIDS.get(DEFAULT_MODEL_NAME, {})
 
-DEFAULT_METRIC = "r2"  # r2 works well for regression
-DEFAULT_SEARCH_MODE = "halving_grid"  # faster & more efficient than full grid
+DEFAULT_METRIC = "r2"
+DEFAULT_SEARCH_MODE = "halving_grid" # faster & more efficient than full grid
 DEFAULT_SEARCH_PARAMS = {
     "factor": 3,
     "min_resources": "exhaust",
@@ -97,8 +96,8 @@ except ModuleNotFoundError:
 
 def setup_mlflow_connection():
     """
-    Configura la conexión a MLflow usando DagsHub si las variables de entorno
-    están presentes; de lo contrario, usa el tracking local.
+    Configures the MLflow connection using DagsHub if environment variables
+    are present; otherwise, it uses local tracking.
     """
     dagshub_owner = os.getenv("DAGSHUB_OWNER")
     dagshub_repo = os.getenv("DAGSHUB_REPO")
