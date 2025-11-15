@@ -1,11 +1,11 @@
 """
-Módulo para la limpieza y preprocesamiento inicial del dataset Seoul Bike Sharing,
-Funciones:
-- Carga el dataset crudo.
-- Normaliza los nombres de las columnas.
-- Convierte la columna de fecha a formato datetime.
-- Filtra los días no operativos.
-- Guarda el dataset procesado en la carpeta `processed`.con registro de ejecución en MLflow mediante DagsHub.
+Module for the initial cleaning and preprocessing of the Seoul Bike Sharing dataset.
+Functions:
+- Loads the raw dataset.
+- Normalizes column names.
+- Converts the date column to datetime format.
+- Filters out non-operational days.
+- Saves the processed dataset in the `processed` folder with MLflow run logging via DagsHub.
 """
 
 from pathlib import Path
@@ -25,10 +25,10 @@ app = typer.Typer()
 
 class DatasetProcessor:
     """
-    Encapsula el pipeline de preprocesamiento de datos.
+    Encapsulates the data preprocessing pipeline.
 
-    Esta clase organiza la carga, limpieza, transformación y guardado de los datos,
-    haciendo el proceso más mantenible y fácil de probar.
+    This class organizes the loading, cleaning, transformation, and saving of data,
+    making the process more maintainable and testable.
     """
 
     def __init__(self, input_path: Path, output_path: Path):
@@ -37,33 +37,33 @@ class DatasetProcessor:
         self.df: Optional[pd.DataFrame] = None
 
     def load_data(self) -> "DatasetProcessor":
-        """Carga el dataset desde el `input_path`."""
-        logger.info(f"Cargando dataset desde {self.input_path}...")
+        """Loads the dataset from the `input_path`."""
+        logger.info(f"Loading dataset from {self.input_path}...")
         try:
             self.df = pd.read_csv(self.input_path, encoding="cp1252")
         except FileNotFoundError:
-            logger.error(f"El archivo no se encontró en la ruta: {self.input_path}")
+            logger.error(f"File not found at path: {self.input_path}")
             raise typer.Exit(code=1)
         return self
 
     def clean_data_values(self) -> "DatasetProcessor":
-        """Limpia los valores de las columnas de tipo 'object'."""
+        """Cleans the values of 'object' type columns."""
         if self.df is None:
-            raise ValueError("El DataFrame no ha sido cargado.")
-        logger.info("Limpiando valores de texto en las columnas...")
+            raise ValueError("DataFrame has not been loaded.")
+        logger.info("Cleaning text values in columns...")
         for col in self.df.select_dtypes(include=["object"]).columns:
-            # Elimina espacios en blanco al inicio y al final
+            # Remove leading and trailing whitespace
             self.df[col] = self.df[col].str.strip()
-        # Imputar valores nulos en la columna 'hour' con la mediana
+        # Impute null values in the 'hour' column with the median
         if "hour" in self.df.columns:
             self.df["hour"] = self.df["hour"].fillna(self.df["hour"].median())
         return self
 
     def _normalize_column_names(self) -> "DatasetProcessor":
-        """Normaliza los nombres de las columnas a un formato snake_case."""
+        """Normalizes column names to a snake_case format."""
         if self.df is None:
-            raise ValueError("El DataFrame no ha sido cargado.")
-        logger.info("Normalizando nombres de columnas...")
+            raise ValueError("DataFrame has not been loaded.")
+        logger.info("Normalizing column names...")
         self.df.columns = (
             self.df.columns.str.strip()
             .str.lower()
@@ -75,8 +75,8 @@ class DatasetProcessor:
 
     def preprocess_data(self) -> "DatasetProcessor":
         if self.df is None:
-            raise ValueError("El DataFrame no ha sido cargado.")
-        logger.info("Aplicando preprocesamiento: convirtiendo fechas y filtrando días no funcionales.")
+            raise ValueError("DataFrame has not been loaded.")
+        logger.info("Applying preprocessing: converting dates and filtering non-functional days.")
         self._normalize_column_names()
         self.df["date"] = pd.to_datetime(self.df["date"], dayfirst=True)
         self.df = self.df[self.df["functioning_day"] == "Yes"].copy()
@@ -87,13 +87,13 @@ class DatasetProcessor:
         return self
 
     def save_data(self) -> None:
-        """Guarda el DataFrame procesado en el `output_path`."""
+        """Saves the processed DataFrame to the `output_path`."""
         if self.df is None:
-            raise ValueError("No hay datos para guardar.")
-        logger.info(f"Guardando dataset procesado en {self.output_path}...")
+            raise ValueError("No data to save.")
+        logger.info(f"Saving processed dataset to {self.output_path}...")
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         self.df.to_csv(self.output_path, index=False)
-        logger.success("Procesamiento y guardado completados exitosamente.")
+        logger.success("Processing and saving completed successfully.")
 
 
 @app.command()
@@ -101,7 +101,7 @@ def main(
     input_path: Path = RAW_DATA_DIR / "seoul_bike_sharing.csv",
     output_path: Path = INTERIM_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
 ):
-    """Ejecuta el pipeline completo de procesamiento de datos con logging en MLflow."""
+    """Runs the complete data processing pipeline with MLflow logging."""
     setup_mlflow_connection()
     mlflow.set_experiment("data_preprocessing")
 
@@ -112,13 +112,13 @@ def main(
         processor = DatasetProcessor(input_path, output_path)
         processor.load_data().clean_data_values().preprocess_data().save_data()
 
-        # Loggear información del dataset
+        # Log dataset information
         if processor.df is not None:
             mlflow.log_metric("rows_processed", len(processor.df))
             mlflow.log_metric("columns", len(processor.df.columns))
             mlflow.log_artifact(str(output_path), artifact_path="processed_data")
 
-        logger.success("Ejecución registrada en MLflow/DagsHub exitosamente.")
+        logger.success("Run successfully logged to MLflow/DagsHub.")
 
 
 if __name__ == "__main__":

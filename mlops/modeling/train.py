@@ -62,7 +62,6 @@ MODEL_REGISTRY = {
     "hist_gradient_boosting_regressor": HistGradientBoostingRegressor,
     "random_forest_regressor": RandomForestRegressor,
     "xgb_regressor": XGBRegressor,
-    # Agrega aquí otros modelos de regresión o clasificación
 }
 
 SEARCH_REGISTRY = {
@@ -73,7 +72,7 @@ SEARCH_REGISTRY = {
 
 
 class ModelTrainer:
-    """Encapsula el pipeline de entrenamiento, tuneo y evaluación del modelo."""
+    """Encapsulates the model training, tuning, and evaluation pipeline."""
 
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -83,28 +82,28 @@ class ModelTrainer:
         self.y_test: Optional[pd.Series] = None
 
     def _load_and_split_data(self):
-        """Carga los datos y los divide temporalmente."""
+        """Loads and splits the data chronologically."""
         path = self.config["dataset_path"]
-        logger.info(f"Cargando dataset desde {path}...")
+        logger.info(f"Loading dataset from {path}...")
         df = pd.read_csv(path).sort_values("year").reset_index(drop=True)
 
         target_col = self.config["target_col"]
         if target_col not in df.columns:
             raise ValueError(
-                f"Columna objetivo '{target_col}' no encontrada. Columnas: {df.columns.tolist()}"
+                f"Target column '{target_col}' not found. Columns: {df.columns.tolist()}"
             )
-        # Eliminar filas donde la columna objetivo es NaN para evitar errores en el entrenamiento
+        # Drop rows where the target column is NaN to avoid errors during training
         initial_rows = len(df)
         df.dropna(subset=[target_col], inplace=True)
         if len(df) < initial_rows:
             logger.warning(
-                f"Se eliminaron {initial_rows - len(df)} filas con valores nulos en la columna objetivo '{target_col}'."
+                f"Dropped {initial_rows - len(df)} rows with null values in the target column '{target_col}'."
             )
 
         X = df.drop(columns=[target_col])
         y = df[target_col]
 
-        # División temporal para evitar fuga de datos
+        # Time-based split to prevent data leakage
         split_index = int(len(df) * (1 - self.config["test_size"]))
         X_train, self.X_test = X.iloc[:split_index], X.iloc[split_index:]
         y_train, self.y_test = y.iloc[:split_index], y.iloc[split_index:]
@@ -117,23 +116,23 @@ class ModelTrainer:
         # Assign training features
         self.X_train = X_train
 
-        logger.info(f"Train: {len(X_train)} / Test: {len(self.X_test)} filas.")
+        logger.info(f"Train: {len(X_train)} / Test: {len(self.X_test)} rows.")
         return self
 
     def _build_pipeline(self):
-        """Construye el pipeline de preprocesamiento y modelo."""
+        """Builds the preprocessing and model pipeline."""
         model_name = self.config["model_name"]
         if model_name not in MODEL_REGISTRY:
             logger.error(
-                f"Modelo '{model_name}' no encontrado. Disponibles: {list(MODEL_REGISTRY.keys())}"
+                f"Model '{model_name}' not found. Available: {list(MODEL_REGISTRY.keys())}"
             )
-            raise ValueError(f"Modelo '{model_name}' no disponible.")
+            raise ValueError(f"Model '{model_name}' not available.")
 
         model_instance = MODEL_REGISTRY[model_name]()
         cat_cols = self.X_train.select_dtypes(include=["object", "category"]).columns.tolist()
         num_cols = self.X_train.select_dtypes(include=np.number).columns.tolist()
-        logger.info(f"Columnas categóricas: {cat_cols}")
-        logger.info(f"Columnas numéricas: {num_cols}")
+        logger.info(f"Categorical columns: {cat_cols}")
+        logger.info(f"Numerical columns: {num_cols}")
 
         preprocessor = ColumnTransformer(
             transformers=[
@@ -144,12 +143,12 @@ class ModelTrainer:
         return Pipeline(steps=[("preprocessor", preprocessor), ("model", model_instance)])
 
     def _build_search_strategy(self, pipeline: Pipeline):
-        """Configura la búsqueda de hiperparámetros."""
+        """Configures the hyperparameter search."""
         search_mode = self.config["search_mode"]
         search_class = SEARCH_REGISTRY[search_mode]
 
-        # Filtra los parámetros de búsqueda para que solo se pasen los relevantes
-        # para la clase de búsqueda seleccionada.
+        # Filter search parameters to pass only the relevant ones
+        # for the selected search class.
         valid_search_params = {
             "grid": [],
             "halving_grid": ["factor", "min_resources", "random_state"],
@@ -173,20 +172,20 @@ class ModelTrainer:
         )
 
     def run(self):
-        """Ejecuta el pipeline completo de entrenamiento y logging en MLflow."""
+        """Runs the complete training and MLflow logging pipeline."""
         self._load_and_split_data()
 
         # --- Create MLflow run ---
-        with mlflow.start_run(run_name=self.config["model_name"], experiment_id=self.config["experiment_id"]):
+        with mlflow.start_run(run_name=self.config["run_name"], experiment_id=self.config["experiment_id"]):
             mlflow.log_params(
                 {k: v for k, v in self.config.items() if isinstance(v, (int, float, str))}
             )
 
             pipeline = self._build_pipeline()
             search = self._build_search_strategy(pipeline)
-            logger.info("Iniciando búsqueda de hiperparámetros...")
+            logger.info("Starting hyperparameter search...")
             search.fit(self.X_train, self.y_train)
-            logger.info("Búsqueda de hiperparámetros completada.")
+            logger.info("Hyperparameter search completed.")
             # Log dataset schema
             schema = {
                 "num_features": len(self.X_train.columns),
@@ -200,7 +199,7 @@ class ModelTrainer:
             mlflow.log_artifact(str(schema_path), artifact_path="metadata")
 
             # --- Log Dataset to MLflow ---
-            # Crea un objeto de dataset de MLflow a partir del DataFrame de pandas
+            # Create an MLflow Dataset object from the pandas DataFrame
             full_df = pd.concat([self.X_train, self.X_test, self.y_test], axis=1)
             dataset = mlflow.data.from_pandas(
                 full_df,
@@ -208,7 +207,7 @@ class ModelTrainer:
                 name="seoul-bike-sharing-featured",
                 targets=self.config["target_col"],
             )
-            # Loggea el dataset como una entrada para esta corrida
+            # Log the dataset as an input for this run
             mlflow.log_input(dataset, context="training")
 
             best_model = search.best_estimator_
@@ -228,13 +227,13 @@ class ModelTrainer:
             test_rmse = np.sqrt(mean_squared_error(self.y_test, y_pred))
 
             mlflow.log_metrics({"test_r2": test_r2, "test_rmse": test_rmse})
-            logger.info(f"Resultados Test - R²: {test_r2:.4f}, RMSE: {test_rmse:.4f}")
+            logger.info(f"Test results - R²: {test_r2:.4f}, RMSE: {test_rmse:.4f}")
 
-            # El modelo ahora se guarda solo en MLflow, no localmente en esta etapa.
+            # The model is now saved only in MLflow, not locally at this stage.
             mlflow.sklearn.log_model(best_model, artifact_path="model")
 
             logger.success(
-                f"Modelo '{self.config['model_name']}' guardado y registrado en MLflow."
+                f"Model '{self.config['model_name']}' saved and logged to MLflow."
             )
 
 
@@ -243,6 +242,7 @@ class ModelTrainer:
 # -------------------------------------------------------------------
 @app.command()
 def main(
+    run_name: str = typer.Option("default_run", help="Name of the MLflow run."),
     dataset_path: Path = PROCESSED_DATA_DIR / "seoul_bike_sharing_featured.csv",
     target_col: str = TARGET_COL,
     model_name: str = DEFAULT_MODEL_NAME,
@@ -254,17 +254,18 @@ def main(
     test_size: float = 0.2,
     model_path: Path = DEFAULT_MODEL_PATH,
 ):
-    """Entrena, tunea y evalúa un modelo usando MLflow + DagsHub."""
-    # Asegurarse de que el experimento exista en MLflow
+    """Trains, tunes, and evaluates a model using MLflow + DagsHub."""
+    # Ensure the experiment exists in MLflow
     experiment_name = "bike_demand_prediction"
     mlflow.set_experiment(experiment_name)
     experiment = mlflow.get_experiment_by_name(experiment_name)
-    # Si no se proporciona una grilla de parámetros, usa la predeterminada para el modelo.
+    # If no parameter grid is provided, use the default for the model.
     if param_grid is None:
         grid = PARAM_GRIDS.get(model_name, DEFAULT_PARAM_GRID)
     else:
         grid = json.loads(param_grid)
     training_config = {
+        "run_name": run_name,
         "dataset_path": dataset_path,
         "experiment_id": experiment.experiment_id,
         "target_col": target_col,

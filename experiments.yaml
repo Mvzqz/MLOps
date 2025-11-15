@@ -1,4 +1,4 @@
-# Experimento base con el modelo por defecto
+# Base experiment with the default model
 baseline_hgb:
   model_name: "hist_gradient_boosting_regressor"
   # No param_grid needed, will use default from config.py
@@ -10,7 +10,7 @@ baseline_xgb:
   model_name: "xgb_regressor"
 
 
-# Experimento para probar regularización en HGB
+# Experiment to test regularization in HGB
 hgb_with_l2:
   model_name: "hist_gradient_boosting_regressor"
   param_grid:

@@ -1,6 +1,6 @@
 """
-Este script consulta los experimentos de MLflow, identifica el mejor modelo
-según una métrica y lo guarda en la carpeta 'models/' para que DVC lo rastree.
+This script queries MLflow experiments, identifies the best model
+based on a metric, and saves it to the 'models/' folder for DVC to track.
 """
 import os
 import pickle
@@ -18,32 +18,32 @@ def promote_best_model(
     model_path: Path = MODELS_DIR / "best_model.pkl",
 ):
     """
-    Encuentra el mejor modelo en un experimento de MLflow y lo guarda localmente.
+    Finds the best model in an MLflow experiment and saves it locally.
 
     Args:
-        experiment_name (str): Nombre del experimento en MLflow.
-        metric (str): Métrica a usar para determinar el mejor modelo (menor valor).
-        model_path (Path): Ruta donde se guardará el mejor modelo.
+        experiment_name (str): Name of the experiment in MLflow.
+        metric (str): Metric to use to determine the best model (lower is better).
+        model_path (Path): Path where the best model will be saved.
     """
     setup_mlflow_connection()
-    logger.info(f"Buscando el mejor modelo en el experimento '{experiment_name}'...")
+    logger.info(f"Searching for the best model in experiment '{experiment_name}'...")
 
-    # Obtener el ID del experimento
+    # Get the experiment ID
     experiment = mlflow.get_experiment_by_name(experiment_name)
     if not experiment:
-        logger.error(f"Experimento '{experiment_name}' no encontrado.")
+        logger.error(f"Experiment '{experiment_name}' not found.")
         return
 
-    # Buscar la mejor corrida (run)
+    # Search for the best run
     best_run = mlflow.search_runs(
         experiment_ids=[experiment.experiment_id],
         order_by=[f"metrics.{metric} ASC"],
         max_results=1,
     ).iloc[0]
 
-    logger.info(f"Mejor corrida encontrada: {best_run.run_id} con {metric}: {best_run[f'metrics.{metric}']:.4f}")
+    logger.info(f"Best run found: {best_run.run_id} with {metric}: {best_run[f'metrics.{metric}']:.4f}")
 
-    # Descargar y guardar el modelo
+    # Download and save the model
     model_uri = f"runs:/{best_run.run_id}/model"
     best_model = mlflow.sklearn.load_model(model_uri)
 
@@ -51,9 +51,9 @@ def promote_best_model(
     with open(model_path, "wb") as f:
         pickle.dump(best_model, f)
 
-    logger.success(f"Mejor modelo guardado en: {model_path}")
+    logger.success(f"Best model saved to: {model_path}")
 
 
 if __name__ == "__main__":
-    # El nombre del experimento debe coincidir con el usado en train.py
+    # The experiment name must match the one used in train.py
     promote_best_model(experiment_name="bike_demand_prediction")
