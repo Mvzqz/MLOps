@@ -1,170 +1,145 @@
-"""Módulo para la ingeniería de características del dataset Seoul Bike Sharing.
-
-Este script carga el dataset limpio, crea nuevas características y
-guarda el dataset enriquecido. Sigue un enfoque orientado a objetos para
-mayor modularidad y mantenibilidad.
 """
-
-import os
-from pathlib import Path
-from typing import Optional
-
-import dagshub
-from dotenv import load_dotenv
-from loguru import logger
-import mlflow
-import mlflow.data.pandas_dataset
+This module is responsible for creating new features from the cleaned dataset.
+It includes time-based features, cyclical features, and lag/rolling features
+to capture temporal patterns in the data.
+"""
 import numpy as np
 import pandas as pd
 import typer
+from loguru import logger
 
 from mlops.config import INTERIM_DATA_DIR, PROCESSED_DATA_DIR
 
 app = typer.Typer()
 
 
-class FeatureEngineer:
-    """Encapsula el pipeline de ingeniería de características."""
+def create_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Engineers features from the input DataFrame.
 
-    def __init__(self, input_path: Path, output_path: Path):
-        self.input_path = input_path
-        self.output_path = output_path
-        self.df: Optional[pd.DataFrame] = None
+    This function adds:
+    1. Time-based features (year, month, day, dayofweek, is_weekend).
+    2. Cyclical features for 'hour' and 'month' to capture cyclical patterns.
+    3. Interaction features like 'is_rush_hour' and 'is_holiday_or_weekend'.
+    4. Lag features for the target variable to capture recent trends.
+    5. Rolling window features to capture moving averages.
 
-    def load_data(self) -> "FeatureEngineer":
-        """Carga el dataset limpio."""
-        logger.info(f"Cargando dataset desde {self.input_path}...")
-        try:
-            self.df = pd.read_csv(self.input_path)
-        except FileNotFoundError:
-            logger.error(f"El archivo no se encontró en la ruta: {self.input_path}")
-            raise typer.Exit(code=1)
-        return self
+    Args:
+        df (pd.DataFrame): The input DataFrame with a 'date' column.
 
-    def create_features(self) -> "FeatureEngineer":
-        """Crea y añade nuevas características al DataFrame."""
-        if self.df is None:
-            raise ValueError("El DataFrame no ha sido cargado. Llama a `load_data` primero.")
+    Returns:
+        pd.DataFrame: The DataFrame with new engineered features.
+    """
+    df = df.copy()
 
-        self._clean_column_names()
-        self.df["date"] = pd.to_datetime(self.df["date"], errors="coerce")
-        self._convert_numeric_columns()
+    # Ensure 'date' is a datetime object
+    df["date"] = pd.to_datetime(df["date"])
+    
+    # Drop rows with invalid dates as they are not useful
+    if df["date"].isnull().any():
+        logger.warning(f"Dropping {df['date'].isnull().sum()} rows with invalid dates.")
+        df.dropna(subset=["date"], inplace=True)
 
-        logger.info("Creando nuevas características...")
+    # 1. Time-based features
+    df["year"] = df["date"].dt.year
+    df["month"] = df["date"].dt.month
+    df["dayofyear"] = df["date"].dt.dayofyear
+    df["weekofyear"] = df["date"].dt.isocalendar().week.astype("Int64")
+    df["quarter"] = df["date"].dt.quarter
+    df["day"] = df["date"].dt.day
+    df["dayofweek"] = df["date"].dt.dayofweek  # Monday=0, Sunday=6
+    df["is_weekend"] = df["dayofweek"].isin([5, 6]).astype(int)
 
-        # Imputar 'hour' antes de usarla para crear nuevas características
-        if "hour" in self.df.columns:
-            self.df["hour"] = self.df["hour"].fillna(self.df["hour"].median())
+    # Ensure 'hour' is a numeric type and handle potential errors
+    if "hour" in df.columns:
+        df["hour"] = pd.to_numeric(df["hour"], errors="coerce")
+        # Clip values to be within the valid range [0, 23] and fill NaNs
+        df["hour"] = df["hour"].clip(0, 23).fillna(df["hour"].median())
+        df["hour"] = df["hour"].astype(int)
 
-        self._add_temporal_features()
+    # 2. Cyclical features
+    df["hour_sin"] = np.sin(2 * np.pi * df["hour"] / 24.0)
+    df["hour_cos"] = np.cos(2 * np.pi * df["hour"] / 24.0)
+    df["month_sin"] = np.sin(2 * np.pi * (df["month"] - 1) / 12.0)
+    df["month_cos"] = np.cos(2 * np.pi * (df["month"] - 1) / 12.0)
+    df["dayofweek_sin"] = np.sin(2 * np.pi * df["dayofweek"] / 7.0)
+    df["dayofweek_cos"] = np.cos(2 * np.pi * df["dayofweek"] / 7.0)
 
-        self.df["hour"] = pd.to_numeric(self.df["hour"], errors="coerce")
-        self.df["month"] = pd.to_numeric(self.df["month"], errors="coerce")
+    # 3. Interaction & derived features
+    df["is_rush_hour"] = df["hour"].isin([7, 8, 9, 17, 18, 19]).astype(int)
 
-        self._add_cyclical_features()
-        self._add_interaction_features()
+    # Handle 'holiday' column if it exists
+    if "holiday" in df.columns:
+        is_holiday = df["holiday"].astype(str).str.lower().isin(["holiday", "yes", "1", "true"])
+        df["is_holiday_or_weekend"] = (df["is_weekend"] == 1) | is_holiday
+        df["is_holiday_or_weekend"] = df["is_holiday_or_weekend"].astype(int)
+        df = df.drop(columns=["holiday"], errors="ignore")
 
-        # Eliminar columnas que ya no son necesarias después de la ingeniería
-        self.df = self.df.drop(columns=["date", "functioning_day", "holiday"], errors="ignore")
+    # Ensure weather columns are numeric before creating interactions
+    weather_cols = [
+        "temperature_c",
+        "humidity",
+        "wind_speed_m_s",
+        "visibility_10m",
+        "dew_point_temperature_c",
+        "solar_radiation_mj_m2",
+    ]
+    for col in weather_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
 
-        return self
+    # Interaction and polynomial features from the notebook
+    if "temperature_c" in df.columns and "humidity" in df.columns:
+        df["temp_humidity"] = df["temperature_c"] * df["humidity"]
+        df["comfort_index"] = df["temperature_c"] - df["humidity"] / 5.0
+    if "wind_speed_m_s" in df.columns and "humidity" in df.columns:
+        df["wind_discomfort"] = df["wind_speed_m_s"] * df["humidity"]
+    if "temperature_c" in df.columns:
+        df["temp_sq"] = df["temperature_c"] ** 2
 
-    def _clean_column_names(self):
-        """Normaliza los nombres de las columnas a un formato snake_case."""
-        if self.df is None:
-            raise ValueError("El DataFrame no ha sido cargado.")
-        logger.info("Normalizando nombres de columnas...")
-        self.df.columns = (
-            self.df.columns.str.strip()
-            .str.lower()
-            .str.replace(r"[^a-zA-Z0-9_]+", "_", regex=True)
-            .str.replace(r"_+", "_", regex=True)
-            .str.strip("_")
-        )
+    # Drop the original date column as it's no longer needed for modeling
+    df = df.drop(columns=["date"], errors="ignore")
 
-    def _convert_numeric_columns(self):
-        """Convierte columnas que parecen numéricas (pero son 'object') a tipo
-        numérico."""
-        logger.info("Intentando convertir columnas de tipo 'object' a numérico...")
-        for col in self.df.select_dtypes(include=["object"]).columns:
-            # Intentar convertir a numérico, ignorando errores para no-numéricos
-            # y asegurando que la columna de tipo mixto se mantenga como 'object'
-            if col == "mixed_type_col":
-                self.df[col] = self.df[col].astype("object")
-                continue
-            numeric_col = pd.to_numeric(self.df[col], errors="coerce")
-            if (
-                self.df is not None
-                and numeric_col.notna().sum() / len(self.df[col].dropna()) > 0.8
-            ):
-                self.df[col] = numeric_col
-                logger.info(f"  - Columna '{col}' convertida a numérico.")
+    # 4. Lag and Rolling Window Features (requires sorting by time)
+    # This assumes the data is already sorted by date and hour from the cleaning step.
+    target = "rented_bike_count"
+    if target in df.columns:
+        # Ensure the target column is numeric before creating lag/rolling features
+        df[target] = pd.to_numeric(df[target], errors="coerce")
+        df.dropna(subset=[target], inplace=True)
 
-    def _add_temporal_features(self):
-        """Añade características basadas en la columna 'date'."""
-        self.df["year"] = self.df["date"].dt.year
-        self.df["month"] = self.df["date"].dt.month
-        self.df["day"] = self.df["date"].dt.day
-        self.df["dayofweek"] = self.df["date"].dt.dayofweek
-        self.df["is_weekend"] = (self.df["dayofweek"] >= 5).astype(int)
+        logger.info(f"Creating lag and rolling features for target: {target}")
+        df["lag_1h"] = df[target].shift(1)
+        df["lag_24h"] = df[target].shift(24)
+        df["lag_168h"] = df[target].shift(24 * 7)
+        df["roll_mean_24h"] = df[target].shift(1).rolling(24).mean()
+        df["roll_mean_168h"] = df[target].shift(1).rolling(24 * 7).mean()
+        df["roll_max_24h"] = df[target].shift(1).rolling(24).max()
+        df["roll_min_24h"] = df[target].shift(1).rolling(24).min()
 
-    def _add_cyclical_features(self):
-        """Añade características cíclicas para entender patrones temporales."""
-        self.df["hour_sin"] = np.sin(2 * np.pi * self.df["hour"] / 24.0)
-        self.df["hour_cos"] = np.cos(2 * np.pi * self.df["hour"] / 24.0)
-        self.df["month_sin"] = np.sin(2 * np.pi * (self.df["month"] - 1) / 12.0)
-        self.df["month_cos"] = np.cos(2 * np.pi * (self.df["month"] - 1) / 12.0)
+        # Drop rows with NaNs created by lags/rolling windows
+        df.dropna(inplace=True)
+        df.reset_index(drop=True, inplace=True)
 
-    def _add_interaction_features(self):
-        """Añade características de negocio y de interacción."""
-        self.df["is_rush_hour"] = self.df["hour"].isin([7, 8, 9, 17, 18, 19]).astype(int)
-        self.df["is_holiday_or_weekend"] = (
-            (self.df["is_weekend"] == 1) | (self.df["holiday"] == "Holiday")
-        ).astype(int)
-
-    def save_data(self) -> None:
-        """Guarda el DataFrame con características en el `output_path`."""
-        if self.df is None:
-            raise ValueError("No hay datos para guardar.")
-        logger.info(f"Guardando dataset con características en {self.output_path}...")
-        self.output_path.parent.mkdir(parents=True, exist_ok=True)
-        self.df.to_csv(self.output_path, index=False)
-        logger.success("Ingeniería de características y guardado completados.")
+    return df
 
 
 @app.command()
-def main(
-    input_path: Path = INTERIM_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
-    output_path: Path = PROCESSED_DATA_DIR / "seoul_bike_sharing_featured.csv",
-):
-    """Ejecuta el pipeline completo de ingeniería de características con MLflow."""
+def main():
+    """
+    Main function to run the feature engineering process.
+    Loads the interim data, creates features, and saves the processed data.
+    """
+    logger.info("Starting feature engineering...")
+    input_path = INTERIM_DATA_DIR / "seoul_bike_sharing_cleaned.csv"
+    output_path = PROCESSED_DATA_DIR / "seoul_bike_sharing_featured.csv"
 
-    # ---- Configurar MLflow con DagsHub ----
-    load_dotenv()
-    dagshub_owner = os.getenv("DAGSHUB_OWNER")
-    dagshub_repo = os.getenv("DAGSHUB_REPO")
+    df_interim = pd.read_csv(input_path)
+    df_featured = create_features(df_interim)
 
-    if dagshub_repo and dagshub_owner:
-        dagshub.init(repo_owner=dagshub_owner, repo_name=dagshub_repo, mlflow=True)
-        mlflow.set_experiment("feature_engineering")
-    else:
-        logger.warning("Variables de entorno de DagsHub no configuradas. Se usará MLflow local.")
-
-    with mlflow.start_run(run_name="feature_engineering"):
-        mlflow.log_param("input_path", str(input_path))
-        mlflow.log_param("output_path", str(output_path))
-
-        engineer = FeatureEngineer(input_path, output_path)
-        engineer.load_data().create_features().save_data()
-
-        if engineer.df is not None:
-            n_features = len(engineer.df.columns)
-            n_rows = len(engineer.df)
-            mlflow.log_metric("rows", n_rows)
-            mlflow.log_metric("feature_count", len(engineer.df.columns))
-            mlflow.log_param("feature_names", ", ".join(engineer.df.columns.tolist()))
-            mlflow.log_artifact(str(output_path), artifact_path="processed_data")
-        logger.success("Ejecución registrada en MLflow/DagsHub exitosamente.")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df_featured.to_csv(output_path, index=False)
+    logger.success(f"Feature engineering complete. Data saved to {output_path}")
 
 
 if __name__ == "__main__":

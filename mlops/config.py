@@ -1,7 +1,9 @@
 from pathlib import Path
+import os
 
 from dotenv import load_dotenv
 from loguru import logger
+import mlflow
 
 # ---------------------------------------------------------
 # Load environment variables
@@ -91,3 +93,23 @@ try:
     logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
 except ModuleNotFoundError:
     pass
+
+
+def setup_mlflow_connection():
+    """
+    Configura la conexión a MLflow usando DagsHub si las variables de entorno
+    están presentes; de lo contrario, usa el tracking local.
+    """
+    dagshub_owner = os.getenv("DAGSHUB_OWNER")
+    dagshub_repo = os.getenv("DAGSHUB_REPO")
+
+    if dagshub_owner and dagshub_repo:
+        import dagshub
+        dagshub.init(repo_owner=dagshub_owner, repo_name=dagshub_repo, mlflow=True)
+        tracking_uri = f"https://dagshub.com/{dagshub_owner}/{dagshub_repo}.mlflow"
+        mlflow.set_tracking_uri(tracking_uri)
+        logger.info(f"MLflow tracking set to DagsHub: {tracking_uri}")
+    else:
+        logger.warning(
+            "DAGSHUB_OWNER or DAGSHUB_REPO not found in environment. Using local MLflow tracking."
+        )

@@ -6,7 +6,6 @@ Funciones:
 - Convierte la columna de fecha a formato datetime.
 - Filtra los días no operativos.
 - Guarda el dataset procesado en la carpeta `processed`.con registro de ejecución en MLflow mediante DagsHub.
-- Guarda el dataset procesado en la carpeta `processed`.con registro de ejecución en MLflow mediante DagsHub.
 """
 
 from pathlib import Path
@@ -19,7 +18,7 @@ import mlflow.data.pandas_dataset
 from loguru import logger
 import typer
 
-from mlops.config import INTERIM_DATA_DIR, RAW_DATA_DIR, TARGET_COL
+from mlops.config import INTERIM_DATA_DIR, RAW_DATA_DIR, TARGET_COL, setup_mlflow_connection
 
 app = typer.Typer()
 
@@ -103,16 +102,8 @@ def main(
     output_path: Path = INTERIM_DATA_DIR / "seoul_bike_sharing_cleaned.csv",
 ):
     """Ejecuta el pipeline completo de procesamiento de datos con logging en MLflow."""
-    
-    # ---- Configurar MLflow con DagsHub ----
-    dagshub_repo = os.getenv("DAGSHUB_REPO")
-    dagshub_owner = os.getenv("DAGSHUB_OWNER")
-
-    if dagshub_repo and dagshub_owner:
-        dagshub.init(repo_owner=dagshub_owner, repo_name=dagshub_repo, mlflow=True)
-        mlflow.set_experiment("data_preprocessing")
-    else:
-        logger.warning("Variables de entorno de DagsHub no configuradas. Se usará MLflow local.")
+    setup_mlflow_connection()
+    mlflow.set_experiment("data_preprocessing")
 
     with mlflow.start_run(run_name="dataset_preprocessing"):
         mlflow.log_param("input_path", str(input_path))

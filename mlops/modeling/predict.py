@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import pickle
+import numpy as np
 from typing import Optional
 
 from loguru import logger
@@ -52,7 +53,11 @@ class ModelPredictor:
 
         logger.info("Realizando predicciones...")
         X = self.df.drop(columns=[TARGET_COL], errors="ignore")
-        self.predictions = self.model.predict(X)
+        # El modelo predice en escala logarítmica, por lo que debemos aplicar la transformación inversa.
+        log_predictions = self.model.predict(X)
+        logger.info("Aplicando transformación inversa (expm1) a las predicciones.")
+        self.predictions = np.expm1(log_predictions)
+
         return self
 
 

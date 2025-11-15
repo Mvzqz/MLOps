@@ -1,9 +1,9 @@
 """Training module for the MLOps project with MLflow and DagsHub integration."""
 
 import json
+import pickle
 import os
 from pathlib import Path
-import pickle
 from typing import Any, Dict, Optional
 
 import dagshub
@@ -45,26 +45,15 @@ from mlops.config import (
     DEFAULT_SEARCH_PARAMS,
     PROCESSED_DATA_DIR,
     TARGET_COL,
+    setup_mlflow_connection,
 )
 
 app = typer.Typer()
 
 # -------------------------------------------------------------------
-# Load environment and initialize DagsHub connection
+# Initialize MLflow connection
 # -------------------------------------------------------------------
-load_dotenv()
-
-dagshub_owner = os.getenv("DAGSHUB_OWNER")
-dagshub_repo = os.getenv("DAGSHUB_REPO")
-
-if dagshub_owner and dagshub_repo:
-    dagshub.init(repo_owner=dagshub_owner, repo_name=dagshub_repo, mlflow=True)
-    mlflow.set_tracking_uri(f"https://dagshub.com/{dagshub_owner}/{dagshub_repo}.mlflow")
-    logger.info(f"MLflow tracking set to DagsHub: {dagshub_owner}/{dagshub_repo}")
-else:
-    logger.warning(
-        "DAGSHUB_USER or DAGSHUB_REPO not found in environment. Using local MLflow tracking."
-    )
+setup_mlflow_connection()
 
 # -------------------------------------------------------------------
 # MODEL AND SEARCH REGISTRIES
@@ -117,10 +106,18 @@ class ModelTrainer:
 
         # División temporal para evitar fuga de datos
         split_index = int(len(df) * (1 - self.config["test_size"]))
-        self.X_train, self.X_test = X.iloc[:split_index], X.iloc[split_index:]
-        self.y_train, self.y_test = y.iloc[:split_index], y.iloc[split_index:]
+        X_train, self.X_test = X.iloc[:split_index], X.iloc[split_index:]
+        y_train, self.y_test = y.iloc[:split_index], y.iloc[split_index:]
 
-        logger.info(f"Train: {len(self.X_train)} / Test: {len(self.X_test)} filas.")
+        # Apply log1p transformation to the target variable
+        logger.info("Applying log1p transformation to the target variable.")
+        self.y_train = np.log1p(y_train)
+        # We keep y_test in its original scale for evaluation
+
+        # Assign training features
+        self.X_train = X_train
+
+        logger.info(f"Train: {len(X_train)} / Test: {len(self.X_test)} filas.")
         return self
 
     def _build_pipeline(self):
@@ -180,7 +177,7 @@ class ModelTrainer:
         self._load_and_split_data()
 
         # --- Create MLflow run ---
-        with mlflow.start_run(run_name=self.config["model_name"]):
+        with mlflow.start_run(run_name=self.config["model_name"], experiment_id=self.config["experiment_id"]):
             mlflow.log_params(
                 {k: v for k, v in self.config.items() if isinstance(v, (int, float, str))}
             )
@@ -202,18 +199,18 @@ class ModelTrainer:
                 json.dump(schema, f, indent=2)
             mlflow.log_artifact(str(schema_path), artifact_path="metadata")
 
-            datasource_dict = {
-                "name": "seoul_bike_sharing_featured",
-                "source": str(self.config["dataset_path"]),
-                "format": "csv",
-                "type": "tabular",
-                "description": "Processed dataset with engineered features for bike sharing demand",
-                "tags": {"project": "Seoul Bike Sharing MLOps", "stage": "feature_engineering"},
-                "size_rows": len(self.X_train) + len(self.X_test),
-                "size_columns": len(self.X_train.columns),
-            }
-            datasource = DatasetSource.from_dict(datasource_dict)
-            print("TYPE OF DATASOURCE:", type(datasource))
+            # --- Log Dataset to MLflow ---
+            # Crea un objeto de dataset de MLflow a partir del DataFrame de pandas
+            full_df = pd.concat([self.X_train, self.X_test, self.y_test], axis=1)
+            dataset = mlflow.data.from_pandas(
+                full_df,
+                source=str(self.config["dataset_path"]),
+                name="seoul-bike-sharing-featured",
+                targets=self.config["target_col"],
+            )
+            # Loggea el dataset como una entrada para esta corrida
+            mlflow.log_input(dataset, context="training")
+
             best_model = search.best_estimator_
             best_params = search.best_params_
             best_cv_score = search.best_score_
@@ -223,19 +220,17 @@ class ModelTrainer:
             mlflow.log_params(best_params)
 
             # Evaluate on test set
-            y_pred = best_model.predict(self.X_test)
+            y_pred_log = best_model.predict(self.X_test)
+            # Inverse transform predictions to original scale for evaluation
+            y_pred = np.expm1(y_pred_log)
+
             test_r2 = r2_score(self.y_test, y_pred)
             test_rmse = np.sqrt(mean_squared_error(self.y_test, y_pred))
 
             mlflow.log_metrics({"test_r2": test_r2, "test_rmse": test_rmse})
             logger.info(f"Resultados Test - R²: {test_r2:.4f}, RMSE: {test_rmse:.4f}")
 
-            # Save model
-            model_path = self.config["model_path"]
-            model_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(model_path, "wb") as f:
-                pickle.dump(best_model, f)
-            mlflow.log_artifact(str(model_path))
+            # El modelo ahora se guarda solo en MLflow, no localmente en esta etapa.
             mlflow.sklearn.log_model(best_model, artifact_path="model")
 
             logger.success(
@@ -260,6 +255,10 @@ def main(
     model_path: Path = DEFAULT_MODEL_PATH,
 ):
     """Entrena, tunea y evalúa un modelo usando MLflow + DagsHub."""
+    # Asegurarse de que el experimento exista en MLflow
+    experiment_name = "bike_demand_prediction"
+    mlflow.set_experiment(experiment_name)
+    experiment = mlflow.get_experiment_by_name(experiment_name)
     # Si no se proporciona una grilla de parámetros, usa la predeterminada para el modelo.
     if param_grid is None:
         grid = PARAM_GRIDS.get(model_name, DEFAULT_PARAM_GRID)
@@ -267,6 +266,7 @@ def main(
         grid = json.loads(param_grid)
     training_config = {
         "dataset_path": dataset_path,
+        "experiment_id": experiment.experiment_id,
         "target_col": target_col,
         "model_name": model_name,
         "param_grid": grid,

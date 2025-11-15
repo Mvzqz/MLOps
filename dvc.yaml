@@ -16,17 +16,28 @@ stages:
       - data/processed/seoul_bike_sharing_featured.csv
 
   train:
-    cmd: poetry run python -m mlops.modeling.train
+    # This stage now runs all experiments defined in experiments.yaml
+    cmd: poetry run python run_experiments.py
     deps:
       - data/processed/seoul_bike_sharing_featured.csv
       - mlops/modeling/train.py
+      - run_experiments.py
+      - experiments.yaml
+    # Esta etapa ya no produce un archivo local, solo registra en MLflow.
+    # Por lo tanto, no tiene 'outs'.
+
+  promote_model:
+    # Este script consulta MLflow y guarda el mejor modelo.
+    cmd: poetry run python run_promote_model.py
+    deps:
+      - run_promote_model.py
+    # DVC ahora rastrea el modelo que este script produce.
     outs:
       - models/best_model.pkl
 
   predict:
     cmd: poetry run python -m mlops.modeling.predict
     deps:
-      - data/processed/seoul_bike_sharing_featured.csv
       - models/best_model.pkl
       - mlops/modeling/predict.py
     outs:

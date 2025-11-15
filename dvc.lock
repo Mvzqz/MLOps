@@ -23,17 +23,17 @@ stages:
     deps:
     - path: data/interim/seoul_bike_sharing_cleaned.csv
       hash: md5
-      md5: ce45aa3fd7a2363439fb6858343c5b85
-      size: 689691
+      md5: 084adb5225159ba173e89949ecf1a3b6
+      size: 697797
     - path: mlops/features.py
       hash: md5
-      md5: 4b93f3c9f0960482ef4bb82d16c49def
-      size: 6998
+      md5: 22a0c0cedcb3437a1c0f45c509374505
+      size: 5969
     outs:
     - path: data/processed/seoul_bike_sharing_featured.csv
       hash: md5
-      md5: 448491a4f48224a89cc582a82295c4a9
-      size: 1254470
+      md5: ebdaa47fbf51897cbe482155eaa8cf7c
+      size: 1885388
   dataset:
     cmd: poetry run python -m mlops.dataset
     deps:
@@ -43,78 +43,89 @@ stages:
       size: 771920
     - path: mlops/dataset.py
       hash: md5
-      md5: 40b32b1d43c93ef8de1eae26c6249498
-      size: 5318
+      md5: 3f1f58de970e920ba1c8b11df85e23cf
+      size: 5006
     outs:
     - path: data/interim/seoul_bike_sharing_cleaned.csv
       hash: md5
-      md5: ce45aa3fd7a2363439fb6858343c5b85
-      size: 689691
+      md5: 084adb5225159ba173e89949ecf1a3b6
+      size: 697797
   train:
-    cmd: poetry run python -m mlops.modeling.train
+    cmd: poetry run python run_experiments.py
     deps:
     - path: data/processed/seoul_bike_sharing_featured.csv
       hash: md5
-      md5: 448491a4f48224a89cc582a82295c4a9
-      size: 1254470
+      md5: ebdaa47fbf51897cbe482155eaa8cf7c
+      size: 1885388
+    - path: experiments.yaml
+      hash: md5
+      md5: f3c3a54a71cf4b10fd759cfa6d0224a6
+      size: 570
     - path: mlops/modeling/train.py
       hash: md5
-      md5: 30acd69de07fa0147f23cef8b509c3dc
-      size: 10880
-    outs:
-    - path: models/best_model.pkl
+      md5: 33ab67ad35f28f5e50c74fd844bc1d44
+      size: 11115
+    - path: run_experiments.py
       hash: md5
-      md5: 4eb3295d3ed3177371a4a5b2aaebf3db
-      size: 1847470
+      md5: 7eeb2514262cc04cfe4fac7b99c631b9
+      size: 1982
   predict:
     cmd: poetry run python -m mlops.modeling.predict
     deps:
-    - path: data/processed/seoul_bike_sharing_featured.csv
-      hash: md5
-      md5: 448491a4f48224a89cc582a82295c4a9
-      size: 1254470
     - path: mlops/modeling/predict.py
       hash: md5
-      md5: 81c3018eeb35ae3253f1489ab5297b39
-      size: 2903
+      md5: 8a1fc7cbe3dc2e702a684ab86eddfc8e
+      size: 3252
     - path: models/best_model.pkl
       hash: md5
-      md5: 4eb3295d3ed3177371a4a5b2aaebf3db
-      size: 1847470
+      md5: 2836718fc625116191a178fa46e1ee00
+      size: 454139
     outs:
     - path: data/processed/test_predictions.csv
       hash: md5
-      md5: 3d99e777b86e707c6c66737ee36362be
-      size: 199511
+      md5: bdad401a6b15cfa8f926d8d7b1fe2784
+      size: 160425
   plots:
     cmd: poetry run python -m mlops.plots
     deps:
     - path: data/processed/seoul_bike_sharing_featured.csv
       hash: md5
-      md5: 448491a4f48224a89cc582a82295c4a9
-      size: 1254470
+      md5: ebdaa47fbf51897cbe482155eaa8cf7c
+      size: 1885388
     - path: data/processed/test_predictions.csv
       hash: md5
-      md5: 3d99e777b86e707c6c66737ee36362be
-      size: 199511
+      md5: bdad401a6b15cfa8f926d8d7b1fe2784
+      size: 160425
     - path: mlops/plots.py
       hash: md5
-      md5: 6dab63d5169a87cfe51e772d704b26d4
-      size: 4042
+      md5: d2d61f3eedf11db0311256f5058348cf
+      size: 4153
     - path: models/best_model.pkl
       hash: md5
-      md5: 4eb3295d3ed3177371a4a5b2aaebf3db
-      size: 1847470
+      md5: 2836718fc625116191a178fa46e1ee00
+      size: 454139
     outs:
     - path: reports/figures/correlation_heatmap.png
       hash: md5
-      md5: c5129bcaf35dc4dfb2e01764222e18d7
-      size: 264762
+      md5: 6c73ab8f9576abb8cadafb0701812e00
+      size: 529061
     - path: reports/figures/demand_by_hour.png
       hash: md5
-      md5: dc6b677b093f739e63b3f5e96ad28ade
-      size: 53768
+      md5: 61e82cb809da2953b450c9c039d3e06f
+      size: 26305
     - path: reports/figures/target_distribution.png
       hash: md5
-      md5: 43740887049a8ab198b9c05f7ac59163
-      size: 32163
+      md5: 90401164da1df66c307b05f85290e6d7
+      size: 28116
+  promote_model:
+    cmd: poetry run python run_promote_model.py
+    deps:
+    - path: run_promote_model.py
+      hash: md5
+      md5: f8b8c395be8ca3f30e3c8bb7ae9b0f7a
+      size: 2016
+    outs:
+    - path: models/best_model.pkl
+      hash: md5
+      md5: 2836718fc625116191a178fa46e1ee00
+      size: 454139
