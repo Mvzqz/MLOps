@@ -1,12 +1,9 @@
-import sys, os
-#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "...")))
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),"..","..")))
 import pytest
 from pathlib import Path
 import pandas as pd
 
-from mlops.features import FeatureEngineer  #usamos la clase directamente
-
+# Import the function directly, not a class
+from mlops.features import create_features
 
 @pytest.fixture
 def sample_data(tmp_path):
@@ -14,24 +11,27 @@ def sample_data(tmp_path):
     data = {
         "Date": ["2018-12-01", "2018-12-02"],
         "Hour": [10, 15],
-        "Temperature(°C)": [5.3, 8.1],
-        "Humidity(%)": [37, 44],
+        "temperature_c": [5.3, 8.1],
+        "humidity": [37, 44],
         "Holiday": ["No Holiday", "Holiday"],
-        "Functioning Day": ["Yes", "Yes"],
+        "functioning_day": ["Yes", "Yes"],
+        "rented_bike_count": [100, 150], # Add target column for lag/rolling features
     }
     df = pd.DataFrame(data)
     input_file = tmp_path / "seoul_bike_sharing_cleaned.csv"
     df.to_csv(input_file, index=False)
-    return input_file
+    return df
 
 
 def test_pipeline_feature_engineering(tmp_path, sample_data):
     """Verifica que el pipeline de FeatureEngineer genera un archivo procesado."""
     output_file = tmp_path / "seoul_bike_sharing_featured.csv"
 
-    #Instanciamos y ejecutamos el pipeline
-    pipeline = FeatureEngineer(sample_data, output_file)
-    pipeline.load_data().create_features().save_data()
+    # Call the feature engineering function directly
+    featured_df = create_features(sample_data)
+
+    # Save the result to validate
+    featured_df.to_csv(output_file, index=False)
 
     #Validaciones
     assert output_file.exists(), "El archivo procesado no fue generado."

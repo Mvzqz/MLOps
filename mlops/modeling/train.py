@@ -199,13 +199,14 @@ class ModelTrainer:
             mlflow.log_artifact(str(schema_path), artifact_path="metadata")
 
             # --- Log Dataset to MLflow ---
-            # Create an MLflow Dataset object from the pandas DataFrame
-            full_df = pd.concat([self.X_train, self.X_test, self.y_test], axis=1)
+            # Create a full DataFrame for logging, ensuring the target column is a Series
+            full_df = pd.concat([self.X_train, self.X_test], axis=0).sort_index()
+            full_df[self.config["target_col"]] = pd.concat([self.y_train, self.y_test], axis=0).sort_index()
             dataset = mlflow.data.from_pandas(
                 full_df,
                 source=str(self.config["dataset_path"]),
                 name="seoul-bike-sharing-featured",
-                targets=self.config["target_col"],
+                targets=self.config["target_col"]
             )
             # Log the dataset as an input for this run
             mlflow.log_input(dataset, context="training")

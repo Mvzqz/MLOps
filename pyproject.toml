@@ -29,37 +29,22 @@ dependencies = [
     "dagshub (>=0.6.3,<0.7.0)"
 ]
 
-
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-
-readme = "README.md"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    
-]
-dependencies = [
-    "black",
-    "flake8",
-    "ipython",
-    "isort",
-    "jupyterlab",
-    "loguru",
-    "matplotlib",
-    "mkdocs",
-    "notebook",
-    "numpy",
-    "pandas",
-    "pip",
-    "pytest",
-    "python-dotenv",
-    "scikit-learn",
-    "tqdm",
-    "typer",
-]
-requires-python = "^3.12"
+[tool.poetry.group.dev.dependencies]
+black = "*"
+flake8 = "*"
+ipython = "*"
+isort = "*"
+jupyterlab = "*"
+matplotlib = "*"
+mkdocs = "*"
+notebook = "*"
+pytest = "*"
+python-dotenv = "*"
+tqdm = "*"
 
 [tool.black]
 line-length = 99
