@@ -24,6 +24,7 @@ class ModelPredictor:
         self.model = None
         self.df: Optional[pd.DataFrame] = None
         self.predictions: Optional[pd.Series] = None
+        self.log_predictions: Optional[np.ndarray] = None
 
     def load_model(self) -> "ModelPredictor":
         """Loads the trained model from the `model_path`."""
@@ -45,6 +46,12 @@ class ModelPredictor:
             logger.error(f"Features file not found at: {self.features_path}")
             raise typer.Exit(code=1)
         return self
+    
+    def load_data_from_dataframe(self, dataframe: pd.DataFrame) -> "ModelPredictor":
+        """Loads the data for prediction from a DataFrame."""
+        logger.info("Loading data for prediction from provided DataFrame...")
+        self.df = dataframe
+        return self
 
     def predict(self) -> "ModelPredictor":
         """Makes predictions on the loaded data."""
@@ -56,10 +63,32 @@ class ModelPredictor:
         # The model predicts on a logarithmic scale, so we must apply the inverse transformation.
         log_predictions = self.model.predict(X)
         logger.info("Applying inverse transformation (expm1) to predictions.")
-        self.predictions = np.expm1(log_predictions)
-
+        self.log_predictions = log_predictions
         return self
 
+    def post_process(self)-> "ModelPredictor":
+        """
+        Postprocess the prediction after obtaining it from the model.   
+
+        Args:
+            prediction (any): The raw prediction from the model.
+
+        Returns:
+            any: The postprocessed prediction.
+        """
+        logger.info("postprocessing prediction...")
+        final_prediction = np.expm1(self.log_predictions)
+        self.predictions = final_prediction
+        return self
+
+    
+    def to_df(self) -> pd.DataFrame:
+        """Export processed data as a DataFrame."""
+        if self.predictions is None:
+            raise ValueError("No predictions available.")
+        logger.success("Processing completed successfully.")
+        predictions_df = pd.DataFrame({"y_pred": self.predictions})
+        return predictions_df
 
 @app.command()
 def main(
@@ -69,10 +98,10 @@ def main(
 ):
     """Runs the complete prediction pipeline."""
     predictor = ModelPredictor(model_path, features_path, predictions_path)
-    predictor.load_model().load_data().predict()
+    predictor.load_model().load_data().predict().post_process()
 
     # Save the predictions
-    predictions_df = pd.DataFrame({"y_pred": predictor.predictions})
+    predictions_df = predictor.to_df()
     if TARGET_COL in predictor.df.columns:
         predictions_df["y_real"] = predictor.df[TARGET_COL]
 

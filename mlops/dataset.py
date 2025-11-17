@@ -45,6 +45,20 @@ class DatasetProcessor:
             logger.error(f"File not found at path: {self.input_path}")
             raise typer.Exit(code=1)
         return self
+    
+    
+    def Load_from_dataframe(self, df:pd.DataFrame) -> "DatasetProcessor":
+        """creates the input df from the provided dictionary."""
+        logger.info(f"Loading dataset from dataframe...")
+        self.df = df
+        return self
+    
+    def to_df(self) -> pd.DataFrame:
+        """Export processed data as a DataFrame."""
+        if self.df is None:
+            raise ValueError("No data available.")
+        logger.success("Processing completed successfully.")
+        return self.df
 
     def clean_data_values(self) -> "DatasetProcessor":
         """Cleans the values of 'object' type columns."""
@@ -78,6 +92,7 @@ class DatasetProcessor:
             raise ValueError("DataFrame has not been loaded.")
         logger.info("Applying preprocessing: converting dates and filtering non-functional days.")
         self._normalize_column_names()
+        logger.info("Normalization applied")
         self.df["date"] = pd.to_datetime(self.df["date"], dayfirst=True)
         self.df = self.df[self.df["functioning_day"] == "Yes"].copy()
         self.df.rename(
