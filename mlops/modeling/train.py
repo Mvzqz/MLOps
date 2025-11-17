@@ -231,7 +231,20 @@ class ModelTrainer:
             logger.info(f"Test results - R²: {test_r2:.4f}, RMSE: {test_rmse:.4f}")
 
             # The model is now saved only in MLflow, not locally at this stage.
-            mlflow.sklearn.log_model(best_model, artifact_path="model")
+            model_name = self.config["model_name"]
+            model_path = self.config["model_path"]
+            with open(model_path, "wb") as f:
+                pickle.dump(best_model, f)
+
+            if model_name in MODEL_REGISTRY.keys():
+                # XGBRegressor wrapped in a Pipeline → log using sklearn
+                mlflow.sklearn.log_model(
+                    best_model,
+                    artifact_path=f"artifacts/{model_name}/1",
+                    registered_model_name=model_name
+                )
+            else:
+                logger.warning(f"Model logging for '{model_name}' is not implemented.")
 
             logger.success(
                 f"Model '{self.config['model_name']}' saved and logged to MLflow."

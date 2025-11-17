@@ -103,23 +103,11 @@ def create_features(df: pd.DataFrame) -> pd.DataFrame:
     # 4. Lag and Rolling Window Features (requires sorting by time)
     # This assumes the data is already sorted by date and hour from the cleaning step.
     target = "rented_bike_count"
+    # if target in df.columns:
+    #     # Ensure the target column is numeric
     if target in df.columns:
-        # Ensure the target column is numeric before creating lag/rolling features
         df[target] = pd.to_numeric(df[target], errors="coerce")
-        df.dropna(subset=[target], inplace=True)
-
-        logger.info(f"Creating lag and rolling features for target: {target}")
-        df["lag_1h"] = df[target].shift(1)
-        df["lag_24h"] = df[target].shift(24)
-        df["lag_168h"] = df[target].shift(24 * 7)
-        df["roll_mean_24h"] = df[target].shift(1).rolling(24).mean()
-        df["roll_mean_168h"] = df[target].shift(1).rolling(24 * 7).mean()
-        df["roll_max_24h"] = df[target].shift(1).rolling(24).max()
-        df["roll_min_24h"] = df[target].shift(1).rolling(24).min()
-
-        # Drop rows with NaNs created by lags/rolling windows
-        df.dropna(inplace=True)
-        df.reset_index(drop=True, inplace=True)
+    df.reset_index(drop=True, inplace=True)
 
     return df
 

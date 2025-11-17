@@ -1,5 +1,5 @@
 {
-  "num_features": 39,
+  "num_features": 32,
   "columns": [
     "hour",
     "temperature_c",
@@ -32,14 +32,7 @@
     "temp_humidity",
     "comfort_index",
     "wind_discomfort",
-    "temp_sq",
-    "lag_1h",
-    "lag_24h",
-    "lag_168h",
-    "roll_mean_24h",
-    "roll_mean_168h",
-    "roll_max_24h",
-    "roll_min_24h"
+    "temp_sq"
   ],
   "dtypes": {
     "hour": "int64",
@@ -73,14 +66,7 @@
     "temp_humidity": "float64",
     "comfort_index": "float64",
     "wind_discomfort": "float64",
-    "temp_sq": "float64",
-    "lag_1h": "float64",
-    "lag_24h": "float64",
-    "lag_168h": "float64",
-    "roll_mean_24h": "float64",
-    "roll_mean_168h": "float64",
-    "roll_max_24h": "float64",
-    "roll_min_24h": "float64"
+    "temp_sq": "float64"
   },
   "target_col": "rented_bike_count"
 }

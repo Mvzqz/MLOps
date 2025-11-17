@@ -3,9 +3,11 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from typing import Dict
-from app.schemas.predict import PredictionRequest
+from app.schemas.predict import FeatureRow, PredictRequest
 from loguru import logger
-import pickle
+from mlops.dataset import DatasetProcessor 
+from mlops.features import create_features
+from mlops.modeling.predict import ModelPredictor
 
 
 class Predictor:
@@ -13,18 +15,18 @@ class Predictor:
 
     def __init__(self, model_path: Path):
         self.model_path = model_path
-        self.model= self.load_model()
+        self.model_predictor = ModelPredictor(model_path, None, None)
 
 
-    def predict(self, data: PredictionRequest) -> Dict[str, float]:
+    def predict(self, data: PredictRequest) -> Dict[str, float]:
         """Perform prediction and return a mock result."""
 
-        processed_data = self._preprocess(data.features)
-        prediction = self.model.predict(processed_data)
-        final_output = self._postprocess(prediction)
-        return {"prediction": final_output}
+        processed_data = self._preprocess(data.Features)
+        predictions_df = self.model_predictor.load_model().load_data_from_dataframe(processed_data).predict().post_process().to_df()
+        final_output = predictions_df["y_pred"].tolist()
+        return {"Prediction": final_output}
     
-    def _preprocess(self, features):
+    def _preprocess(self, features: list[FeatureRow]):
         """
         Preprocess the input data before making predictions.
 
@@ -35,13 +37,18 @@ class Predictor:
             any: The preprocessed data.
         """
         logger.info("preprocessing input data...")
-        X = pd.DataFrame([features])
-        X.columns = ["hour","temperature_c","humidity","wind_speed_m_s","visibility_10m","dew_point_temperature_c","solar_radiation_mj_m2","rainfall_mm","snowfall_cm","seasons","mixed_type_col","year","month","day","dayofweek","is_weekend","hour_sin","hour_cos","month_sin","month_cos","is_rush_hour","is_holiday_or_weekend"]
-        return X
+        processor = DatasetProcessor("", "")
+        rows_as_dicts = [row.model_dump() for row in features]
+        feature_df = pd.DataFrame(rows_as_dicts)
+        logger.info("Cleaning input data...")
+        clean_data = processor.Load_from_dataframe(feature_df).clean_data_values().preprocess_data().to_df()
+        logger.info("Creating features...")
+        features = create_features(clean_data)
+        return features
 
     def _postprocess(self, prediction):
         """
-        Postprocess the prediction after obtaining it from the model.
+        Postprocess the prediction after obtaining it from the model.   
 
         Args:
             prediction (any): The raw prediction from the model.
@@ -50,15 +57,7 @@ class Predictor:
             any: The postprocessed prediction.
         """
         logger.info("postprocessing prediction...")
-        return prediction  # Placeholder
+        final_prediction = np.expm1(prediction)
+        return final_prediction
     
-    def load_model(self):
-        """Carga el modelo entrenado desde el `model_path`."""
-        logger.info(f"Cargando modelo desde {self.model_path}...")
-        try:
-            with open(self.model_path, "rb") as f:
-                model = pickle.load(f)
-        except FileNotFoundError:
-            logger.error(f"El modelo no se encontró en: {self.model_path}")
-        return model
-    
+
