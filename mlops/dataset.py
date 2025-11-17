@@ -71,6 +71,14 @@ class DatasetProcessor:
         # Impute null values in the 'hour' column with the median
         if "hour" in self.df.columns:
             self.df["hour"] = self.df["hour"].fillna(self.df["hour"].median())
+
+        # Drop rows where the target column has null values
+        if TARGET_COL in self.df.columns:
+            initial_count = len(self.df)
+            self.df = self.df.dropna(subset=[TARGET_COL])
+            dropped_count = initial_count - len(self.df)
+            if dropped_count > 0:
+                logger.warning(f"Dropped {dropped_count} rows with null values in '{TARGET_COL}' column.")
         return self
 
     def _normalize_column_names(self) -> "DatasetProcessor":

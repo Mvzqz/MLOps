@@ -43,8 +43,8 @@ stages:
       size: 771920
     - path: mlops/dataset.py
       hash: md5
-      md5: a97cbd438c0db0b28ea73ff9898ee4e6
-      size: 5252
+      md5: f1bf3ef74848608e9d56195ae5af8137
+      size: 5652
     outs:
     - path: data/interim/seoul_bike_sharing_cleaned.csv
       hash: md5
