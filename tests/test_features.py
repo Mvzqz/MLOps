@@ -1,15 +1,17 @@
-# Prueban mlops/features.py verificando que la ingeniería de características se aplique correctamente
-import sys, os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+"""
+Tests for the feature engineering module (mlops/features.py).
+
+These tests verify that the feature engineering functions are applied correctly.
+"""
 
 import pytest
 import pandas as pd
-from pathlib import Path
-from mlops.features import FeatureEngineer
+from mlops.features import create_features
 
 @pytest.fixture
 def sample_data():
-    # Incluimos 'holiday' y 'functioning_day' porque el pipeline los usa
+    """Fixture to create a sample DataFrame for feature engineering tests."""
+    # Includes 'holiday' and 'functioning_day' as they are used in the pipeline.
     return pd.DataFrame({
         'date': pd.to_datetime(['2021-01-01', '2021-01-02']),  # Vie, Sáb
         'hour': [10, 15],
@@ -19,47 +21,43 @@ def sample_data():
         'functioning_day': ['Yes', 'Yes'],
     })
 
-def _run_pipeline_with_tmp_paths(df: pd.DataFrame, tmp_path: Path) -> pd.DataFrame:
-    input_path = tmp_path / "input.csv"
-    output_path = tmp_path / "output.csv"
-    df.to_csv(input_path, index=False)
+def test_add_time_features(sample_data):
+    """Tests the creation of time-based features."""
+    df = create_features(sample_data)
 
-    fe = FeatureEngineer(input_path=input_path, output_path=output_path)
-    fe.load_data().create_features()
-    assert fe.df is not None
-    return fe.df
-
-def test_add_time_features(sample_data, tmp_path):
-    df = _run_pipeline_with_tmp_paths(sample_data, tmp_path)
-
-    # Columnas temporales creadas por _add_temporal_features
+    # Check that temporal columns are created
     for col in ["year", "month", "day", "dayofweek", "is_weekend"]:
         assert col in df.columns
 
-    # Chequeo simple: 2021-01-01 es viernes (no fin de semana), 2021-01-02 es sábado (fin de semana)
+    # Simple check: 2021-01-01 is a Friday (not weekend), 2021-01-02 is a Saturday (weekend)
     assert df.loc[0, "is_weekend"] == 0
     assert df.loc[1, "is_weekend"] == 1
 
-    # 'hour' permanece disponible y se usa para cíclicas
+    # 'hour' should remain available for cyclical features
     assert "hour" in df.columns
 
-def test_add_interaction_features(sample_data, tmp_path):
-    df = _run_pipeline_with_tmp_paths(sample_data, tmp_path)
+def test_add_interaction_features(sample_data):
+    """Tests the creation of interaction and business-logic features."""
+    df = create_features(sample_data)
 
-    # Columnas de interacción reales del código
+    # Check for interaction columns from the code
     assert "is_rush_hour" in df.columns
     assert "is_holiday_or_weekend" in df.columns
 
-    # Horas 10 y 15 no son rush hour (7,8,9,17,18,19)
+    # Hours 10 and 15 are not rush hour (defined as 7,8,9,17,18,19)
     assert df["is_rush_hour"].tolist() == [0, 0]
 
-    # Fila 0: viernes sin holiday -> 0; Fila 1: sábado y holiday -> 1
+    # Row 0: Friday without holiday -> 0; Row 1: Saturday and holiday -> 1
     assert df["is_holiday_or_weekend"].tolist() == [0, 1]
 
-def test_prepare_final_dataset_like(sample_data, tmp_path):
-    df = _run_pipeline_with_tmp_paths(sample_data, tmp_path)
+def test_prepare_final_dataset_like(sample_data):
+    """
+    Tests the final state of the dataset, ensuring it's ready for modeling.
+    This includes checking for cyclical features.
+    """
+    df = create_features(sample_data)
 
-    # El pipeline deja un DataFrame no vacío y con features cíclicas
+    # The pipeline should leave a non-empty DataFrame with cyclical features
     assert isinstance(df, pd.DataFrame)
     assert not df.empty
     for col in ["hour_sin", "hour_cos", "month_sin", "month_cos"]:

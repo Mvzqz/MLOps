@@ -1,10 +1,14 @@
-#Verifica que la configuración cargue correctamente rutas y parámetros.
-import sys, os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+"""
+Tests for the project's configuration module (mlops/config.py).
+
+Verifies that the configuration loads correctly and contains essential
+paths and parameters.
+"""
 
 from mlops import config
 
 def test_config_paths_exist():
+    """Tests that essential configuration attributes exist and are correctly typed."""
     assert hasattr(config, "RAW_DATA_DIR")
     assert hasattr(config, "MODELS_DIR")
     assert isinstance(config.PARAM_GRIDS, dict)

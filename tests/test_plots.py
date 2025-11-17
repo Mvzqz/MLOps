@@ -1,8 +1,8 @@
-# tests/test_plots.py
-# Verifica la correcta generación de gráficos sin errores.
+"""
+Tests for the plot generation module (mlops/plots.py).
 
-import sys, os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+Verifies that EDA plots are generated correctly without errors.
+"""
 
 import pytest
 import pandas as pd
@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 @pytest.fixture
 def sample_data():
+    """Provides a sample DataFrame for plotting tests."""
     return pd.DataFrame({
         'hour': [0, 1, 2, 3],
         'rented_bike_count': [100, 150, 200, 250],
@@ -19,6 +20,7 @@ def sample_data():
     })
 
 def _make_plot_generator(tmp_path: Path, df: pd.DataFrame) -> PlotGenerator:
+    """Helper to create a PlotGenerator instance with temporary paths."""
     input_path = tmp_path / "data.csv"
     df.to_csv(input_path, index=False)
     output_dir = tmp_path / "figures"
@@ -28,6 +30,7 @@ def _make_plot_generator(tmp_path: Path, df: pd.DataFrame) -> PlotGenerator:
 
 
 def test_generate_all_plots(sample_data, tmp_path):
+    """Tests that all defined plots are generated and saved successfully."""
     pg = _make_plot_generator(tmp_path, sample_data)
     pg.generate_plots()
     for expected_file in [
@@ -35,4 +38,4 @@ def test_generate_all_plots(sample_data, tmp_path):
         "demand_by_hour.png",
         "correlation_heatmap.png",
     ]:
-        assert (pg.output_dir / expected_file).exists(), f"{expected_file} no fue generado"
+        assert (pg.output_dir / expected_file).exists(), f"{expected_file} was not generated"
