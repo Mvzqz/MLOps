@@ -107,6 +107,10 @@ def create_features(df: pd.DataFrame) -> pd.DataFrame:
     #     # Ensure the target column is numeric
     if target in df.columns:
         df[target] = pd.to_numeric(df[target], errors="coerce")
+        #Windzorize the target to handle potential outliers
+        q_low = df[target].quantile(0.01)
+        q_high = df[target].quantile(0.99)
+        df[target] = df[target].clip(lower=q_low, upper=q_high)
     df.reset_index(drop=True, inplace=True)
 
     return df
