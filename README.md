@@ -21,6 +21,10 @@ Este proyecto implementa un pipeline de Machine Learning de principio a fin para
 - **Librerías de Datos:** Pandas, NumPy
 - **CLI y Automatización:** Typer, PyYAML
 
+## Modelo usado en la API 
+
+/models/hist_gradient_boosting_regressor/36
+
 ## 📂 Estructura del Proyecto
 
 ```
