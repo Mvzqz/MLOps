@@ -8,7 +8,7 @@ from typing import Optional
 from loguru import logger
 import pandas as pd
 import typer
-
+from sklearn.metrics import mean_squared_error, r2_score
 from mlops.config import DEFAULT_MODEL_PATH, PROCESSED_DATA_DIR, TARGET_COL
 
 app = typer.Typer()
@@ -104,6 +104,15 @@ def main(
     predictions_df = predictor.to_df()
     if TARGET_COL in predictor.df.columns:
         predictions_df["y_real"] = predictor.df[TARGET_COL]
+
+    predictor.df["y_pred"] = predictions_df["y_pred"] 
+
+    predictions_df.dropna(inplace=True)
+
+    test_r2 = r2_score(predictions_df["y_real"], predictions_df["y_pred"])
+    test_rmse = np.sqrt(mean_squared_error(predictions_df["y_real"], predictions_df["y_pred"]))
+    logger.info(f"Test R2 Score: {test_r2:.4f}")
+    logger.info(f"Test RMSE: {test_rmse:.4f}")
 
     predictions_path.parent.mkdir(parents=True, exist_ok=True)
     predictions_df.to_csv(predictions_path, index=False)
